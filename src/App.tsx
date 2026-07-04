@@ -7,7 +7,9 @@ import RegisterPage from "./pages/RegisterPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import type { Role } from "./types/auth";
 import { getDashboardPath } from "./utils/authRedirect";
+import CompanyDashboardPage from "./pages/CompanyDashboardPage";
 import UserDashboardPage from "./pages/UserDashboardPage";
+import UserCompanyProfilePage from "./pages/UserCompanyProfilePage";
 
 function HomePage() {
   const { isAuthenticated, role } = useAuth();
@@ -49,17 +51,6 @@ function RequireAuth({
 }
 
 
-function CompanyDashboardPage() {
-  const { logout } = useAuth();
-
-  return (
-    <main>
-      <h1>Company Dashboard</h1>
-      <p>Only companies should see this page.</p>
-      <button onClick={logout}>Logout</button>
-    </main>
-  );
-}
 
 function AdminDashboardPage() {
   const { logout } = useAuth();
@@ -91,6 +82,15 @@ export default function App() {
           </RequireAuth>
         }
       />
+
+      <Route
+  path="/companies/:companyId"
+  element={
+    <RequireAuth allowedRoles={["USER"]}>
+      <UserCompanyProfilePage />
+    </RequireAuth>
+  }
+/>
 
       <Route
         path="/company"

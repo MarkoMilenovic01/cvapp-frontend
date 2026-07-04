@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { ApiError } from "../api/apiClient";
 import * as cvApi from "../api/cvApi";
 import { useAuth } from "../context/AuthContext";
+
+import UserJobsSection from "./UserJobsSection";
+import UserApplicationsSection from "./UserApplicationsSection";
+
 import type {
   CVRequest,
   CVResponse,
@@ -48,6 +52,10 @@ const emptySkill: SkillRequest = {
 
 export default function UserDashboardPage() {
   const { logout } = useAuth();
+
+  const [activeTab, setActiveTab] = useState<"cv" | "jobs" | "applications">(
+    "cv"
+  );
 
   const [cv, setCv] = useState<CVRequest>(emptyCV);
   const [savedCV, setSavedCV] = useState<CVResponse | null>(null);
@@ -265,394 +273,440 @@ export default function UserDashboardPage() {
     <main>
       <h1>User Dashboard</h1>
 
-      <button onClick={logout}>Logout</button>
-
-      <hr />
-
-      <h2>My CV</h2>
-
-      {savedCV ? (
-        <p>CV ID: {savedCV.id}</p>
-      ) : (
-        <p>You do not have a CV yet. Fill the form and save it.</p>
-      )}
-
-      {message && <p>{message}</p>}
-      {error && <p>{error}</p>}
-
-      <div>
-        <label>First name</label>
-        <input
-          value={cv.firstName}
-          onChange={(event) =>
-            setCv({ ...cv, firstName: event.target.value })
-          }
-        />
-      </div>
-
-      <div>
-        <label>Last name</label>
-        <input
-          value={cv.lastName}
-          onChange={(event) => setCv({ ...cv, lastName: event.target.value })}
-        />
-      </div>
-
-      <div>
-        <label>Phone</label>
-        <input
-          value={cv.phone}
-          onChange={(event) => setCv({ ...cv, phone: event.target.value })}
-        />
-      </div>
-
-      <div>
-        <label>Address</label>
-        <input
-          value={cv.address}
-          onChange={(event) => setCv({ ...cv, address: event.target.value })}
-        />
-      </div>
-
-      <div>
-        <label>Summary</label>
-        <textarea
-          value={cv.summary}
-          onChange={(event) => setCv({ ...cv, summary: event.target.value })}
-        />
-      </div>
-
-      <div>
-        <label>LinkedIn URL</label>
-        <input
-          value={cv.linkedinUrl}
-          onChange={(event) =>
-            setCv({ ...cv, linkedinUrl: event.target.value })
-          }
-        />
-      </div>
-
-      <div>
-        <label>GitHub URL</label>
-        <input
-          value={cv.githubUrl}
-          onChange={(event) =>
-            setCv({ ...cv, githubUrl: event.target.value })
-          }
-        />
-      </div>
-
-      <hr />
-
-      <h2>Education</h2>
-
-      {cv.education.map((education, index) => (
-        <div key={index}>
-          <h3>Education #{index + 1}</h3>
-
-          <div>
-            <label>Institution</label>
-            <input
-              value={education.institution}
-              onChange={(event) =>
-                updateEducation(index, {
-                  ...education,
-                  institution: event.target.value,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>Degree</label>
-            <input
-              value={education.degree}
-              onChange={(event) =>
-                updateEducation(index, {
-                  ...education,
-                  degree: event.target.value,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>Field of study</label>
-            <input
-              value={education.fieldOfStudy}
-              onChange={(event) =>
-                updateEducation(index, {
-                  ...education,
-                  fieldOfStudy: event.target.value,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>Start date</label>
-            <input
-              type="date"
-              value={education.startDate ?? ""}
-              onChange={(event) =>
-                updateEducation(index, {
-                  ...education,
-                  startDate: event.target.value || null,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>End date</label>
-            <input
-              type="date"
-              value={education.endDate ?? ""}
-              disabled={education.current}
-              onChange={(event) =>
-                updateEducation(index, {
-                  ...education,
-                  endDate: event.target.value || null,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>
-              <input
-                type="checkbox"
-                checked={education.current}
-                onChange={(event) =>
-                  updateEducation(index, {
-                    ...education,
-                    current: event.target.checked,
-                    endDate: event.target.checked ? null : education.endDate,
-                  })
-                }
-              />
-              Current
-            </label>
-          </div>
-
-          <button type="button" onClick={() => removeEducation(index)}>
-            Remove education
-          </button>
-
-          <hr />
-        </div>
-      ))}
-
-      <button type="button" onClick={addEducation}>
-        Add education
+      <button type="button" onClick={logout}>
+        Logout
       </button>
 
       <hr />
 
-      <h2>Experience</h2>
-
-      {cv.experience.map((experience, index) => (
-        <div key={index}>
-          <h3>Experience #{index + 1}</h3>
-
-          <div>
-            <label>Company name</label>
-            <input
-              value={experience.companyName}
-              onChange={(event) =>
-                updateExperience(index, {
-                  ...experience,
-                  companyName: event.target.value,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>Position</label>
-            <input
-              value={experience.position}
-              onChange={(event) =>
-                updateExperience(index, {
-                  ...experience,
-                  position: event.target.value,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>Description</label>
-            <textarea
-              value={experience.description}
-              onChange={(event) =>
-                updateExperience(index, {
-                  ...experience,
-                  description: event.target.value,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>Start date</label>
-            <input
-              type="date"
-              value={experience.startDate ?? ""}
-              onChange={(event) =>
-                updateExperience(index, {
-                  ...experience,
-                  startDate: event.target.value || null,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>End date</label>
-            <input
-              type="date"
-              value={experience.endDate ?? ""}
-              disabled={experience.current}
-              onChange={(event) =>
-                updateExperience(index, {
-                  ...experience,
-                  endDate: event.target.value || null,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>
-              <input
-                type="checkbox"
-                checked={experience.current}
-                onChange={(event) =>
-                  updateExperience(index, {
-                    ...experience,
-                    current: event.target.checked,
-                    endDate: event.target.checked ? null : experience.endDate,
-                  })
-                }
-              />
-              Current
-            </label>
-          </div>
-
-          <button type="button" onClick={() => removeExperience(index)}>
-            Remove experience
-          </button>
-
-          <hr />
-        </div>
-      ))}
-
-      <button type="button" onClick={addExperience}>
-        Add experience
-      </button>
-
-      <hr />
-
-      <h2>Skills</h2>
-
-      {cv.skills.map((skill, index) => (
-        <div key={index}>
-          <h3>Skill #{index + 1}</h3>
-
-          <div>
-            <label>Name</label>
-            <input
-              value={skill.name}
-              onChange={(event) =>
-                updateSkill(index, {
-                  ...skill,
-                  name: event.target.value,
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label>Level</label>
-            <input
-              value={skill.level}
-              placeholder="Beginner / Intermediate / Advanced"
-              onChange={(event) =>
-                updateSkill(index, {
-                  ...skill,
-                  level: event.target.value,
-                })
-              }
-            />
-          </div>
-
-          <button type="button" onClick={() => removeSkill(index)}>
-            Remove skill
-          </button>
-
-          <hr />
-        </div>
-      ))}
-
-      <button type="button" onClick={addSkill}>
-        Add skill
-      </button>
-
-      <hr />
-
-      <button onClick={handleSave}>Save CV</button>
-
-      {savedCV && (
-        <button onClick={handleDeleteCV} style={{ marginLeft: "8px" }}>
-          Delete CV
+      <nav>
+        <button type="button" onClick={() => setActiveTab("cv")}>
+          My CV
         </button>
-      )}
+
+        <button type="button" onClick={() => setActiveTab("jobs")}>
+          Jobs
+        </button>
+
+        <button type="button" onClick={() => setActiveTab("applications")}>
+          My applications
+        </button>
+      </nav>
 
       <hr />
 
-      <h2>Profile photo</h2>
+      {activeTab === "cv" && (
+        <>
+          <h2>My CV</h2>
 
-      {savedCV?.profilePhotoUrl && (
-        <img
-          src={savedCV.profilePhotoUrl}
-          alt="Profile"
-          width={120}
-          height={120}
-        />
+          {savedCV ? (
+            <p>CV ID: {savedCV.id}</p>
+          ) : (
+            <p>You do not have a CV yet. Fill the form and save it.</p>
+          )}
+
+          {message && <p>{message}</p>}
+          {error && <p>{error}</p>}
+
+          <div>
+            <label>First name</label>
+            <input
+              value={cv.firstName}
+              onChange={(event) =>
+                setCv({ ...cv, firstName: event.target.value })
+              }
+            />
+          </div>
+
+          <div>
+            <label>Last name</label>
+            <input
+              value={cv.lastName}
+              onChange={(event) =>
+                setCv({ ...cv, lastName: event.target.value })
+              }
+            />
+          </div>
+
+          <div>
+            <label>Phone</label>
+            <input
+              value={cv.phone}
+              onChange={(event) => setCv({ ...cv, phone: event.target.value })}
+            />
+          </div>
+
+          <div>
+            <label>Address</label>
+            <input
+              value={cv.address}
+              onChange={(event) =>
+                setCv({ ...cv, address: event.target.value })
+              }
+            />
+          </div>
+
+          <div>
+            <label>Summary</label>
+            <textarea
+              value={cv.summary}
+              onChange={(event) =>
+                setCv({ ...cv, summary: event.target.value })
+              }
+            />
+          </div>
+
+          <div>
+            <label>LinkedIn URL</label>
+            <input
+              value={cv.linkedinUrl}
+              onChange={(event) =>
+                setCv({ ...cv, linkedinUrl: event.target.value })
+              }
+            />
+          </div>
+
+          <div>
+            <label>GitHub URL</label>
+            <input
+              value={cv.githubUrl}
+              onChange={(event) =>
+                setCv({ ...cv, githubUrl: event.target.value })
+              }
+            />
+          </div>
+
+          <hr />
+
+          <h2>Education</h2>
+
+          {cv.education.map((education, index) => (
+            <div key={index}>
+              <h3>Education #{index + 1}</h3>
+
+              <div>
+                <label>Institution</label>
+                <input
+                  value={education.institution}
+                  onChange={(event) =>
+                    updateEducation(index, {
+                      ...education,
+                      institution: event.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>Degree</label>
+                <input
+                  value={education.degree}
+                  onChange={(event) =>
+                    updateEducation(index, {
+                      ...education,
+                      degree: event.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>Field of study</label>
+                <input
+                  value={education.fieldOfStudy}
+                  onChange={(event) =>
+                    updateEducation(index, {
+                      ...education,
+                      fieldOfStudy: event.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>Start date</label>
+                <input
+                  type="date"
+                  value={education.startDate ?? ""}
+                  onChange={(event) =>
+                    updateEducation(index, {
+                      ...education,
+                      startDate: event.target.value || null,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>End date</label>
+                <input
+                  type="date"
+                  value={education.endDate ?? ""}
+                  disabled={education.current}
+                  onChange={(event) =>
+                    updateEducation(index, {
+                      ...education,
+                      endDate: event.target.value || null,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={education.current}
+                    onChange={(event) =>
+                      updateEducation(index, {
+                        ...education,
+                        current: event.target.checked,
+                        endDate: event.target.checked
+                          ? null
+                          : education.endDate,
+                      })
+                    }
+                  />
+                  Current
+                </label>
+              </div>
+
+              <button type="button" onClick={() => removeEducation(index)}>
+                Remove education
+              </button>
+
+              <hr />
+            </div>
+          ))}
+
+          <button type="button" onClick={addEducation}>
+            Add education
+          </button>
+
+          <hr />
+
+          <h2>Experience</h2>
+
+          {cv.experience.map((experience, index) => (
+            <div key={index}>
+              <h3>Experience #{index + 1}</h3>
+
+              <div>
+                <label>Company name</label>
+                <input
+                  value={experience.companyName}
+                  onChange={(event) =>
+                    updateExperience(index, {
+                      ...experience,
+                      companyName: event.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>Position</label>
+                <input
+                  value={experience.position}
+                  onChange={(event) =>
+                    updateExperience(index, {
+                      ...experience,
+                      position: event.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>Description</label>
+                <textarea
+                  value={experience.description}
+                  onChange={(event) =>
+                    updateExperience(index, {
+                      ...experience,
+                      description: event.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>Start date</label>
+                <input
+                  type="date"
+                  value={experience.startDate ?? ""}
+                  onChange={(event) =>
+                    updateExperience(index, {
+                      ...experience,
+                      startDate: event.target.value || null,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>End date</label>
+                <input
+                  type="date"
+                  value={experience.endDate ?? ""}
+                  disabled={experience.current}
+                  onChange={(event) =>
+                    updateExperience(index, {
+                      ...experience,
+                      endDate: event.target.value || null,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={experience.current}
+                    onChange={(event) =>
+                      updateExperience(index, {
+                        ...experience,
+                        current: event.target.checked,
+                        endDate: event.target.checked
+                          ? null
+                          : experience.endDate,
+                      })
+                    }
+                  />
+                  Current
+                </label>
+              </div>
+
+              <button type="button" onClick={() => removeExperience(index)}>
+                Remove experience
+              </button>
+
+              <hr />
+            </div>
+          ))}
+
+          <button type="button" onClick={addExperience}>
+            Add experience
+          </button>
+
+          <hr />
+
+          <h2>Skills</h2>
+
+          {cv.skills.map((skill, index) => (
+            <div key={index}>
+              <h3>Skill #{index + 1}</h3>
+
+              <div>
+                <label>Name</label>
+                <input
+                  value={skill.name}
+                  onChange={(event) =>
+                    updateSkill(index, {
+                      ...skill,
+                      name: event.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label>Level</label>
+                <input
+                  value={skill.level}
+                  placeholder="Beginner / Intermediate / Advanced"
+                  onChange={(event) =>
+                    updateSkill(index, {
+                      ...skill,
+                      level: event.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <button type="button" onClick={() => removeSkill(index)}>
+                Remove skill
+              </button>
+
+              <hr />
+            </div>
+          ))}
+
+          <button type="button" onClick={addSkill}>
+            Add skill
+          </button>
+
+          <hr />
+
+          <button type="button" onClick={handleSave}>
+            Save CV
+          </button>
+
+          {savedCV && (
+            <button
+              type="button"
+              onClick={handleDeleteCV}
+              style={{ marginLeft: "8px" }}
+            >
+              Delete CV
+            </button>
+          )}
+
+          <hr />
+
+          <h2>Profile photo</h2>
+
+          {savedCV?.profilePhotoUrl && (
+            <img
+              src={savedCV.profilePhotoUrl}
+              alt="Profile"
+              width={120}
+              height={120}
+            />
+          )}
+
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(event) => setPhotoFile(event.target.files?.[0] ?? null)}
+          />
+
+          <button
+            type="button"
+            onClick={handleUploadPhoto}
+            disabled={!photoFile}
+          >
+            Upload photo
+          </button>
+
+          <hr />
+
+          <h2>CV PDF</h2>
+
+          {savedCV?.pdfUrl && (
+            <p>
+              <a href={savedCV.pdfUrl} target="_blank" rel="noreferrer">
+                Open uploaded PDF
+              </a>
+            </p>
+          )}
+
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={(event) => setPdfFile(event.target.files?.[0] ?? null)}
+          />
+
+          <button type="button" onClick={handleUploadPdf} disabled={!pdfFile}>
+            Upload PDF
+          </button>
+        </>
       )}
 
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(event) => setPhotoFile(event.target.files?.[0] ?? null)}
-      />
+      {activeTab === "jobs" && <UserJobsSection />}
 
-      <button onClick={handleUploadPhoto} disabled={!photoFile}>
-        Upload photo
-      </button>
-
-      <hr />
-
-      <h2>CV PDF</h2>
-
-      {savedCV?.pdfUrl && (
-        <p>
-          <a href={savedCV.pdfUrl} target="_blank" rel="noreferrer">
-            Open uploaded PDF
-          </a>
-        </p>
-      )}
-
-      <input
-        type="file"
-        accept="application/pdf"
-        onChange={(event) => setPdfFile(event.target.files?.[0] ?? null)}
-      />
-
-      <button onClick={handleUploadPdf} disabled={!pdfFile}>
-        Upload PDF
-      </button>
+      {activeTab === "applications" && <UserApplicationsSection />}
     </main>
   );
 }
