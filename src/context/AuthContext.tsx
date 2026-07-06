@@ -5,6 +5,8 @@ import type {
   LoginRequest,
   RegisterRequest,
   Role,
+  AcceptCompanyInviteRequest,
+  OAuthExchangeRequest
 } from "../types/auth";
 
 type AuthContextValue = {
@@ -15,6 +17,12 @@ type AuthContextValue = {
   login: (request: LoginRequest) => Promise<AuthResponse>;
   register: (request: RegisterRequest) => Promise<AuthResponse>;
   logout: () => Promise<void>;
+  acceptCompanyInvite: (
+    request: AcceptCompanyInviteRequest
+  ) => Promise<AuthResponse>
+
+    completeOAuthLogin: (request: OAuthExchangeRequest) => Promise<AuthResponse>;
+
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -84,6 +92,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function acceptCompanyInvite(
+  request: AcceptCompanyInviteRequest
+): Promise<AuthResponse> {
+  const response = await authApi.acceptCompanyInvite(request);
+  saveAuth(response);
+  return response;
+}
+
+async function completeOAuthLogin(request: OAuthExchangeRequest): Promise<AuthResponse> {
+    const response = await authApi.exchangeOAuthCode(request);
+    saveAuth(response);
+    return response;
+  }
+
   const value = useMemo<AuthContextValue>(
     () => ({
       accessToken,
@@ -92,6 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(accessToken),
       login,
       register,
+      acceptCompanyInvite,
+      completeOAuthLogin,
       logout,
     }),
     [accessToken, refreshToken, role]

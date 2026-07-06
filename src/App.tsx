@@ -10,6 +10,10 @@ import { getDashboardPath } from "./utils/authRedirect";
 import CompanyDashboardPage from "./pages/CompanyDashboardPage";
 import UserDashboardPage from "./pages/UserDashboardPage";
 import UserCompanyProfilePage from "./pages/UserCompanyProfilePage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
+import AcceptCompanyInvitePage from "./pages/AcceptCompanyInvitePage";
+import OAuth2RedirectPage from "./pages/OAuth2RedirectPage";
+
 
 function HomePage() {
   const { isAuthenticated, role } = useAuth();
@@ -52,18 +56,6 @@ function RequireAuth({
 
 
 
-function AdminDashboardPage() {
-  const { logout } = useAuth();
-
-  return (
-    <main>
-      <h1>Admin Dashboard</h1>
-      <p>Only admins should see this page.</p>
-      <button onClick={logout}>Logout</button>
-    </main>
-  );
-}
-
 export default function App() {
   return (
     <Routes>
@@ -82,6 +74,12 @@ export default function App() {
           </RequireAuth>
         }
       />
+
+      <Route
+  path="/accept-invite"
+  element={<AcceptCompanyInvitePage />}
+/>
+
 
       <Route
   path="/companies/:companyId"
@@ -109,6 +107,9 @@ export default function App() {
           </RequireAuth>
         }
       />
+
+      <Route path="/oauth2/redirect" element={<OAuth2RedirectPage />} />
+
     </Routes>
   );
 }

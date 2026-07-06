@@ -31,10 +31,21 @@ export interface AuthResponse {
   role: Role;
 }
 
+export interface AcceptCompanyInviteRequest{
+  token: string;
+  password: string;
+  confirmPassword:string;
+}
+
+
 export interface ApiErrorBody {
   timestamp?: string;
   status?: number;
   error?: string;
   message?: string;
   details?: Record<string, string>;
+}
+
+export interface OAuthExchangeRequest {
+  code: string;
 }

@@ -5,7 +5,9 @@ import type {
   LoginRequest,
   RefreshTokenRequest,
   RegisterRequest,
+  OAuthExchangeRequest,
   ResetPasswordRequest,
+  AcceptCompanyInviteRequest
 } from "../types/auth";
 
 export function login(request: LoginRequest): Promise<AuthResponse> {
@@ -45,6 +47,23 @@ export function forgotPassword(request: ForgotPasswordRequest): Promise<void> {
 
 export function resetPassword(request: ResetPasswordRequest): Promise<void> {
   return apiRequest<void>("/api/auth/reset-password", {
+    method: "POST",
+    body: request,
+  });
+}
+
+export function acceptCompanyInvite(
+  request: AcceptCompanyInviteRequest
+): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>("/api/auth/company-invites/accept", {
+    method: "POST",
+    body: request,
+  });
+}
+
+
+export function exchangeOAuthCode(request: OAuthExchangeRequest): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>("/api/auth/oauth/exchange", {
     method: "POST",
     body: request,
   });
