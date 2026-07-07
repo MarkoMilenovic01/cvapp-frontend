@@ -41,7 +41,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
+    <main className="min-h-screen bg-slate-100">
       <h1>Login</h1>
       {oauthError && <p>{oauthError}</p>}
       <form onSubmit={handleSubmit}>

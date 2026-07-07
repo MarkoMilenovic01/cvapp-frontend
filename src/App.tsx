@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ForgotPasswordPage from "./features/auth/pages/ForgotPasswordPage";
+import LoginPage from "./features/auth/pages/LoginPage";
+import RegisterPage from  "./features/auth/pages/RegisterPage";
+import ResetPasswordPage from "./features/auth/pages/ResetPasswordPage";
 import type { Role } from "./types/auth";
 import { getDashboardPath } from "./utils/authRedirect";
 import CompanyDashboardPage from "./pages/CompanyDashboardPage";
