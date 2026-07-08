@@ -7,12 +7,12 @@ import RegisterPage from  "./features/auth/pages/RegisterPage";
 import ResetPasswordPage from "./features/auth/pages/ResetPasswordPage";
 import type { Role } from "./types/auth";
 import { getDashboardPath } from "./utils/authRedirect";
-import CompanyDashboardPage from "./pages/CompanyDashboardPage";
-import UserDashboardPage from "./pages/UserDashboardPage";
-import UserCompanyProfilePage from "./pages/UserCompanyProfilePage";
-import AdminDashboardPage from "./pages/AdminDashboardPage";
-import AcceptCompanyInvitePage from "./pages/AcceptCompanyInvitePage";
-import OAuth2RedirectPage from "./pages/OAuth2RedirectPage";
+import CompanyDashboardPage from "./features/company/pages/CompanyDashboardPage";
+import UserDashboardPage from "./features/user/pages/UserDashboardPage";
+import UserCompanyProfilePage from "./features/user/pages/UserCompanyProfilePage";
+import AdminDashboardPage from "@/features/admin/pages/AdminDashboardPage";
+import AcceptCompanyInvitePage from "@/features/auth/pages/AcceptCompanyInvitePage";
+import OAuth2RedirectPage from "@/features/auth/pages/OAuth2RedirectPage";
 
 
 function HomePage() {

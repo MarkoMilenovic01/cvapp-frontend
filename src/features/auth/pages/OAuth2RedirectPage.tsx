@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { getDashboardPath } from "../utils/authRedirect";
-import { ApiError } from "../api/apiClient";
+import { useAuth } from "../../../context/AuthContext";
+import { getDashboardPath } from "../../../utils/authRedirect";
+import { ApiError } from "../../../api/apiClient";
 
 export default function OAuth2RedirectPage() {
   const [searchParams] = useSearchParams();

@@ -10,7 +10,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     status?: number,
-    details?: Record<string, string>
+    details?: Record<string, string>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -25,9 +25,17 @@ type ApiRequestOptions = {
   token?: string | null;
 };
 
+function parseJsonOrUndefined<T>(text: string): T {
+  if (!text.trim()) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
+}
+
 export async function apiRequest<T>(
   path: string,
-  options: ApiRequestOptions = {}
+  options: ApiRequestOptions = {},
 ): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -43,6 +51,8 @@ export async function apiRequest<T>(
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
+  const text = await response.text();
+
   if (!response.ok) {
     let errorBody: ApiErrorBody = {
       message: "Something went wrong",
@@ -50,13 +60,15 @@ export async function apiRequest<T>(
     };
 
     try {
-      const parsedBody = (await response.json()) as ApiErrorBody;
+      if (text.trim()) {
+        const parsedBody = JSON.parse(text) as ApiErrorBody;
 
-      errorBody = {
-        message: parsedBody.message ?? "Something went wrong",
-        status: parsedBody.status ?? response.status,
-        details: parsedBody.details,
-      };
+        errorBody = {
+          message: parsedBody.message ?? "Something went wrong",
+          status: parsedBody.status ?? response.status,
+          details: parsedBody.details,
+        };
+      }
     } catch {
       // Keep default errorBody if response body is empty or invalid JSON
     }
@@ -64,21 +76,17 @@ export async function apiRequest<T>(
     throw new ApiError(
       errorBody.message ?? "Something went wrong",
       errorBody.status ?? response.status,
-      errorBody.details
+      errorBody.details,
     );
   }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return response.json() as Promise<T>;
+  return parseJsonOrUndefined<T>(text);
 }
 
 export async function apiMultipartRequest<T>(
   path: string,
   file: File,
-  token?: string | null
+  token?: string | null,
 ): Promise<T> {
   const headers: Record<string, string> = {};
 
@@ -95,6 +103,8 @@ export async function apiMultipartRequest<T>(
     body: formData,
   });
 
+  const text = await response.text();
+
   if (!response.ok) {
     let errorBody: ApiErrorBody = {
       message: "Something went wrong",
@@ -102,13 +112,15 @@ export async function apiMultipartRequest<T>(
     };
 
     try {
-      const parsedBody = (await response.json()) as ApiErrorBody;
+      if (text.trim()) {
+        const parsedBody = JSON.parse(text) as ApiErrorBody;
 
-      errorBody = {
-        message: parsedBody.message ?? "Something went wrong",
-        status: parsedBody.status ?? response.status,
-        details: parsedBody.details,
-      };
+        errorBody = {
+          message: parsedBody.message ?? "Something went wrong",
+          status: parsedBody.status ?? response.status,
+          details: parsedBody.details,
+        };
+      }
     } catch {
       // Keep default errorBody
     }
@@ -116,13 +128,9 @@ export async function apiMultipartRequest<T>(
     throw new ApiError(
       errorBody.message ?? "Something went wrong",
       errorBody.status ?? response.status,
-      errorBody.details
+      errorBody.details,
     );
   }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return response.json() as Promise<T>;
+  return parseJsonOrUndefined<T>(text);
 }
