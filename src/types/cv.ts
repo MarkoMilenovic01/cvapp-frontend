@@ -14,22 +14,70 @@ export interface EducationResponse extends EducationRequest {
 export interface ExperienceRequest {
   companyName: string;
   position: string;
+  experienceType: ExperienceType | "";
   description: string;
   startDate: string | null;
   endDate: string | null;
   current: boolean;
 }
 
+export type ExperienceType =
+  | "FULL_TIME"
+  | "PART_TIME"
+  | "INTERNSHIP"
+  | "STUDENT_WORK"
+  | "VOLUNTEER"
+  | "FREELANCE"
+  | "CONTRACT";
+
 export interface ExperienceResponse extends ExperienceRequest {
   id: number;
 }
 
 export interface SkillRequest {
-  name: string;
-  level: string;
+  name: SkillName | "";
+  level: SkillLevel | "";
 }
 
+export type SkillLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+
+export type SkillName =
+  | "JAVA"
+  | "SPRING_BOOT"
+  | "POSTGRESQL"
+  | "DOCKER"
+  | "GIT"
+  | "REACT"
+  | "TYPESCRIPT"
+  | "JAVASCRIPT"
+  | "HTML"
+  | "CSS"
+  | "PYTHON"
+  | "MACHINE_LEARNING"
+  | "TENSORFLOW"
+  | "PANDAS"
+  | "SQL"
+  | "NODE_JS"
+  | "EXPRESS"
+  | "AWS"
+  | "FIGMA"
+  | "MONGODB";
+
 export interface SkillResponse extends SkillRequest {
+  id: number;
+}
+
+export interface ProjectRequest {
+  name: string;
+  description: string;
+  projectUrl: string;
+  repositoryUrl: string;
+  startDate: string | null;
+  endDate: string | null;
+  current: boolean;
+}
+
+export interface ProjectResponse extends ProjectRequest {
   id: number;
 }
 
@@ -41,9 +89,6 @@ export interface CVRequest {
   summary: string;
   linkedinUrl: string;
   githubUrl: string;
-  education: EducationRequest[];
-  experience: ExperienceRequest[];
-  skills: SkillRequest[];
 }
 
 export interface CVResponse {
@@ -57,6 +102,7 @@ export interface CVResponse {
   githubUrl: string;
   education: EducationResponse[];
   experience: ExperienceResponse[];
+  projects: ProjectResponse[];
   skills: SkillResponse[];
   createdAt: string;
   profilePhotoUrl?: string;

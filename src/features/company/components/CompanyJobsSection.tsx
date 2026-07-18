@@ -1,8 +1,24 @@
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import {
+  CalendarDays,
+  CircleAlert,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 
 import { ApiError } from "@/api/apiClient";
 import * as jobApi from "@/api/jobApi";
+import {
+  CompanyLoadingSpinner,
+  CompanyStatusToast,
+} from "@/features/company/components/CompanySectionUI";
 
 import type {
   ApplicationStatus,
@@ -22,14 +38,71 @@ const emptyJob: JobRequest = {
   deadline: null,
 };
 
-const statuses: ApplicationStatus[] = [
-  "APPLIED",
+const companyStatuses: ApplicationStatus[] = [
   "REVIEWED",
   "SHORTLISTED",
   "CONTACTED",
   "REJECTED",
   "ACCEPTED",
 ];
+
+type JobErrors = Partial<Record<keyof JobRequest, string>>;
+
+function getTodayDate() {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${today.getFullYear()}-${month}-${day}`;
+}
+
+function validateJob(job: JobRequest) {
+  const errors: JobErrors = {};
+
+  if (!job.title.trim()) {
+    errors.title = "Naziv pozicije je obavezan.";
+  } else if (job.title.length > 255) {
+    errors.title = "Naziv pozicije može imati najviše 255 karaktera.";
+  }
+
+  if (!job.description.trim()) {
+    errors.description = "Opis pozicije je obavezan.";
+  } else if (job.description.length > 10000) {
+    errors.description = "Opis može imati najviše 10000 karaktera.";
+  }
+
+  if (job.requirements.length > 10000) {
+    errors.requirements = "Zahtevi mogu imati najviše 10000 karaktera.";
+  }
+
+  if (job.location.length > 255) {
+    errors.location = "Lokacija može imati najviše 255 karaktera.";
+  }
+
+  if (!job.employmentType) {
+    errors.employmentType = "Tip angažovanja je obavezan.";
+  }
+
+  if (!job.workMode) {
+    errors.workMode = "Način rada je obavezan.";
+  }
+
+  if (job.deadline && job.deadline < getTodayDate()) {
+    errors.deadline = "Rok za prijavu ne može biti u prošlosti.";
+  }
+
+  return errors;
+}
+
+function cleanJob(job: JobRequest): JobRequest {
+  return {
+    ...job,
+    title: job.title.trim(),
+    description: job.description.trim(),
+    requirements: job.requirements.trim(),
+    location: job.location.trim(),
+    deadline: job.deadline || null,
+  };
+}
 
 const inputClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#1375bc] focus:ring-4 focus:ring-[#1375bc]/10";
@@ -41,13 +114,13 @@ const selectClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[#1375bc] focus:ring-4 focus:ring-[#1375bc]/10";
 
 const primaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl bg-[#1375bc] px-4 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#1375bc] px-5 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#1375bc]/30 hover:bg-[#f3f8fc] hover:text-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 const dangerButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-5 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (err instanceof ApiError) {
@@ -163,6 +236,7 @@ export default function CompanyJobsSection() {
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<JobErrors>({});
 
   useEffect(() => {
     void loadJobs(0);
@@ -193,15 +267,21 @@ export default function CompanyJobsSection() {
   async function handleSaveJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    const errors = validateJob(jobForm);
+    setValidationErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setMessage("");
+      setError("Proveri označena polja pre čuvanja oglasa.");
+      return;
+    }
+
     try {
       setSaving(true);
       setMessage("");
       setError("");
 
-      const cleanedRequest: JobRequest = {
-        ...jobForm,
-        deadline: jobForm.deadline || null,
-      };
+      const cleanedRequest = cleanJob(jobForm);
 
       if (editingJobId) {
         await jobApi.updateCompanyJob(editingJobId, cleanedRequest);
@@ -213,6 +293,7 @@ export default function CompanyJobsSection() {
 
       setJobForm(emptyJob);
       setEditingJobId(null);
+      setValidationErrors({});
 
       await loadJobs(0);
     } catch (err) {
@@ -228,6 +309,7 @@ export default function CompanyJobsSection() {
     setEditingJobId(job.id);
     setMessage("");
     setError("");
+    setValidationErrors({});
 
     setJobForm({
       title: job.title ?? "",
@@ -243,6 +325,16 @@ export default function CompanyJobsSection() {
   function handleCancelEdit() {
     setEditingJobId(null);
     setJobForm(emptyJob);
+    setValidationErrors({});
+  }
+
+  function updateJobField<K extends keyof JobRequest>(
+    field: K,
+    value: JobRequest[K],
+  ) {
+    setValidationErrors((current) => ({ ...current, [field]: undefined }));
+    setError("");
+    setJobForm((current) => ({ ...current, [field]: value }));
   }
 
   async function handleDeleteJob(id: number) {
@@ -357,30 +449,25 @@ export default function CompanyJobsSection() {
           <button
             type="button"
             onClick={() => void loadJobs(page)}
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15"
+            disabled={loading}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
+            {loading ? (
+              <CompanyLoadingSpinner />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
             Osveži
           </button>
         </div>
       </div>
 
       <div className="space-y-6 p-6 sm:p-8">
-        {message && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-6">
             <form
               onSubmit={handleSaveJob}
+              noValidate
               className="rounded-3xl border border-slate-200 bg-slate-50 p-5"
             >
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -407,52 +494,53 @@ export default function CompanyJobsSection() {
                     onClick={handleCancelEdit}
                     className={secondaryButtonClass}
                   >
+                    <X className="h-4 w-4 text-[#1375bc]" />
                     Otkaži izmenu
                   </button>
                 )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Naziv pozicije">
+                <Field label="Naziv pozicije" error={validationErrors.title}>
                   <input
                     value={jobForm.title}
                     placeholder="Backend Developer Intern"
+                    maxLength={256}
+                    aria-invalid={Boolean(validationErrors.title)}
                     onChange={(event) =>
-                      setJobForm((current) => ({
-                        ...current,
-                        title: event.target.value,
-                      }))
+                      updateJobField("title", event.target.value)
                     }
-                    className={inputClass}
+                    className={`${inputClass} ${validationErrors.title ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
                   />
                 </Field>
 
-                <Field label="Lokacija">
+                <Field label="Lokacija" error={validationErrors.location}>
                   <input
                     value={jobForm.location}
                     placeholder="Niš, Beograd, Remote..."
+                    maxLength={256}
+                    aria-invalid={Boolean(validationErrors.location)}
                     onChange={(event) =>
-                      setJobForm((current) => ({
-                        ...current,
-                        location: event.target.value,
-                      }))
+                      updateJobField("location", event.target.value)
                     }
-                    className={inputClass}
+                    className={`${inputClass} ${validationErrors.location ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
                   />
                 </Field>
 
-                <Field label="Tip angažovanja">
+                <Field
+                  label="Tip angažovanja"
+                  error={validationErrors.employmentType}
+                >
                   <select
                     value={jobForm.employmentType}
+                    aria-invalid={Boolean(validationErrors.employmentType)}
                     onChange={(event) =>
-                      setJobForm((current) => ({
-                        ...current,
-                        employmentType:
-                          event.target
-                            .value as JobRequest["employmentType"],
-                      }))
+                      updateJobField(
+                        "employmentType",
+                        event.target.value as JobRequest["employmentType"],
+                      )
                     }
-                    className={selectClass}
+                    className={`${selectClass} ${validationErrors.employmentType ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
                   >
                     <option value="">Izaberi tip</option>
                     <option value="INTERNSHIP">Praksa</option>
@@ -462,16 +550,17 @@ export default function CompanyJobsSection() {
                   </select>
                 </Field>
 
-                <Field label="Način rada">
+                <Field label="Način rada" error={validationErrors.workMode}>
                   <select
                     value={jobForm.workMode}
+                    aria-invalid={Boolean(validationErrors.workMode)}
                     onChange={(event) =>
-                      setJobForm((current) => ({
-                        ...current,
-                        workMode: event.target.value as JobRequest["workMode"],
-                      }))
+                      updateJobField(
+                        "workMode",
+                        event.target.value as JobRequest["workMode"],
+                      )
                     }
-                    className={selectClass}
+                    className={`${selectClass} ${validationErrors.workMode ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
                   >
                     <option value="">Izaberi način rada</option>
                     <option value="ONSITE">U kancelariji</option>
@@ -480,50 +569,50 @@ export default function CompanyJobsSection() {
                   </select>
                 </Field>
 
-                <Field label="Rok za prijavu">
+                <Field label="Rok za prijavu" error={validationErrors.deadline}>
                   <input
                     type="date"
                     value={jobForm.deadline ?? ""}
+                    min={getTodayDate()}
+                    aria-invalid={Boolean(validationErrors.deadline)}
                     onChange={(event) =>
-                      setJobForm((current) => ({
-                        ...current,
-                        deadline: event.target.value || null,
-                      }))
+                      updateJobField("deadline", event.target.value || null)
                     }
-                    className={inputClass}
+                    className={`${inputClass} ${validationErrors.deadline ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
                   />
                 </Field>
 
                 <div className="hidden md:block" />
 
                 <div className="md:col-span-2">
-                  <Field label="Opis pozicije">
+                  <Field
+                    label="Opis pozicije"
+                    error={validationErrors.description}
+                  >
                     <textarea
                       value={jobForm.description}
                       placeholder="Ukratko opiši poziciju, tim, odgovornosti i šta student može da nauči..."
+                      maxLength={10001}
+                      aria-invalid={Boolean(validationErrors.description)}
                       onChange={(event) =>
-                        setJobForm((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
+                        updateJobField("description", event.target.value)
                       }
-                      className={textareaClass}
+                      className={`${textareaClass} ${validationErrors.description ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
                     />
                   </Field>
                 </div>
 
                 <div className="md:col-span-2">
-                  <Field label="Zahtevi">
+                  <Field label="Zahtevi" error={validationErrors.requirements}>
                     <textarea
                       value={jobForm.requirements}
                       placeholder="Npr. osnovno poznavanje React-a, Java, SQL, komunikacija, motivacija..."
+                      maxLength={10001}
+                      aria-invalid={Boolean(validationErrors.requirements)}
                       onChange={(event) =>
-                        setJobForm((current) => ({
-                          ...current,
-                          requirements: event.target.value,
-                        }))
+                        updateJobField("requirements", event.target.value)
                       }
-                      className={textareaClass}
+                      className={`${textareaClass} ${validationErrors.requirements ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
                     />
                   </Field>
                 </div>
@@ -531,6 +620,13 @@ export default function CompanyJobsSection() {
 
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <button type="submit" disabled={saving} className={primaryButtonClass}>
+                  {saving ? (
+                    <CompanyLoadingSpinner />
+                  ) : editingJobId ? (
+                    <Save className="h-4 w-4" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
                   {saving
                     ? "Čuvanje..."
                     : editingJobId
@@ -544,6 +640,7 @@ export default function CompanyJobsSection() {
                     onClick={handleCancelEdit}
                     className={secondaryButtonClass}
                   >
+                    <RotateCcw className="h-4 w-4 text-[#1375bc]" />
                     Resetuj formu
                   </button>
                 )}
@@ -552,6 +649,7 @@ export default function CompanyJobsSection() {
 
             <div className="space-y-4">
               <div>
+                <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
                 <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-950">
                   Objavljeni oglasi
                 </h3>
@@ -562,8 +660,11 @@ export default function CompanyJobsSection() {
               </div>
 
               {loading ? (
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
-                  Učitavanje oglasa...
+                <div className="flex min-h-40 items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+                  <span className="inline-flex items-center gap-2">
+                    <CompanyLoadingSpinner />
+                    Učitavanje oglasa...
+                  </span>
                 </div>
               ) : jobPage?.content.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -591,6 +692,8 @@ export default function CompanyJobsSection() {
                             : "border-slate-200 hover:border-[#1375bc]/40",
                         ].join(" ")}
                       >
+                        <div className="mb-4 h-1 w-9 rounded-full bg-[#ffd21e]" />
+
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
@@ -622,12 +725,18 @@ export default function CompanyJobsSection() {
                             onClick={() => handleViewApplications(job)}
                             className={selected ? primaryButtonClass : secondaryButtonClass}
                           >
+                            <Users
+                              className={`h-4 w-4 ${selected ? "text-white" : "text-[#1375bc]"}`}
+                            />
                             {selected ? "Prijave otvorene" : "Prikaži prijave"}
                           </button>
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-2">
-                          <Badge>Rok: {formatValue(job.deadline)}</Badge>
+                          <Badge>
+                            <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+                            Rok: {formatValue(job.deadline)}
+                          </Badge>
                           <Badge>{getEmploymentTypeLabel(job.employmentType)}</Badge>
                           <Badge>{getWorkModeLabel(job.workMode)}</Badge>
                         </div>
@@ -638,6 +747,7 @@ export default function CompanyJobsSection() {
                             onClick={() => handleEditJob(job)}
                             className={secondaryButtonClass}
                           >
+                            <Pencil className="h-4 w-4 text-[#1375bc]" />
                             Uredi
                           </button>
 
@@ -647,6 +757,11 @@ export default function CompanyJobsSection() {
                             disabled={deleting}
                             className={dangerButtonClass}
                           >
+                            {deleting ? (
+                              <CompanyLoadingSpinner />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                             {deleting ? "Brisanje..." : "Obriši"}
                           </button>
                         </div>
@@ -693,6 +808,7 @@ export default function CompanyJobsSection() {
 
           <aside className="xl:sticky xl:top-6 xl:self-start">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#1375bc]">
                 Prijave kandidata
               </p>
@@ -720,7 +836,8 @@ export default function CompanyJobsSection() {
                   </p>
 
                   {applicationsLoading ? (
-                    <p className="mt-5 text-sm font-medium text-slate-500">
+                    <p className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-slate-500">
+                      <CompanyLoadingSpinner />
                       Učitavanje prijava...
                     </p>
                   ) : applications.length === 0 ? (
@@ -742,8 +859,10 @@ export default function CompanyJobsSection() {
                         return (
                           <article
                             key={application.id}
-                            className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4"
+                            className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#1375bc]/40"
                           >
+                            <div className="mb-3 h-1 w-8 rounded-full bg-[#ffd21e]" />
+
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <div>
                                 <h4 className="font-bold tracking-[-0.03em] text-slate-950">
@@ -780,13 +899,29 @@ export default function CompanyJobsSection() {
                                   }
                                   className={selectClass}
                                 >
-                                  {statuses.map((status) => (
+                                  {!companyStatuses.includes(
+                                    application.status,
+                                  ) && (
+                                    <option
+                                      value={application.status}
+                                      disabled
+                                    >
+                                      {getStatusLabel(application.status)}
+                                    </option>
+                                  )}
+                                  {companyStatuses.map((status) => (
                                     <option key={status} value={status}>
                                       {getStatusLabel(status)}
                                     </option>
                                   ))}
                                 </select>
                               </Field>
+                              {updating && (
+                                <p className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-slate-500">
+                                  <CompanyLoadingSpinner />
+                                  Ažuriranje statusa...
+                                </p>
+                              )}
                             </div>
                           </article>
                         );
@@ -799,21 +934,38 @@ export default function CompanyJobsSection() {
           </aside>
         </div>
       </div>
+
+      <CompanyStatusToast
+        message={message}
+        error={error}
+        onClose={() => {
+          setMessage("");
+          setError("");
+        }}
+      />
     </section>
   );
 }
 
 function Field({
   label,
+  error,
   children,
 }: {
   label: string;
+  error?: string;
   children: ReactNode;
 }) {
   return (
     <label className="block space-y-2">
       <span className="text-sm font-semibold text-slate-700">{label}</span>
       {children}
+      {error && (
+        <span className="flex items-start gap-1.5 text-xs font-medium text-red-600">
+          <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {error}
+        </span>
+      )}
     </label>
   );
 }

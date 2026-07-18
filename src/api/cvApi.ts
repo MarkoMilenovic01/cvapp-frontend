@@ -1,4 +1,7 @@
-import { apiMultipartRequest, apiRequest } from "./apiClient";
+import {
+  apiMultipartRequest,
+  apiRequest,
+} from "./apiClient";
 import type {
   CVRequest,
   CVResponse,
@@ -6,21 +9,19 @@ import type {
   EducationResponse,
   ExperienceRequest,
   ExperienceResponse,
+  ProjectRequest,
+  ProjectResponse,
   SkillRequest,
   SkillResponse,
   UploadResponse,
 } from "../types/cv";
 
-function getToken() {
-  return localStorage.getItem("accessToken");
-}
 
 // CV profile
 
 export function getMyCV(): Promise<CVResponse> {
   return apiRequest<CVResponse>("/api/user/cv", {
     method: "GET",
-    token: getToken(),
   });
 }
 
@@ -28,14 +29,12 @@ export function saveCV(request: CVRequest): Promise<CVResponse> {
   return apiRequest<CVResponse>("/api/user/cv", {
     method: "PUT",
     body: request,
-    token: getToken(),
   });
 }
 
 export function deleteCV(): Promise<void> {
   return apiRequest<void>("/api/user/cv", {
     method: "DELETE",
-    token: getToken(),
   });
 }
 
@@ -44,7 +43,6 @@ export function deleteCV(): Promise<void> {
 export function getEducation(): Promise<EducationResponse[]> {
   return apiRequest<EducationResponse[]>("/api/user/cv/education", {
     method: "GET",
-    token: getToken(),
   });
 }
 
@@ -54,7 +52,6 @@ export function addEducation(
   return apiRequest<EducationResponse>("/api/user/cv/education", {
     method: "POST",
     body: request,
-    token: getToken(),
   });
 }
 
@@ -65,14 +62,12 @@ export function updateEducation(
   return apiRequest<EducationResponse>(`/api/user/cv/education/${id}`, {
     method: "PUT",
     body: request,
-    token: getToken(),
   });
 }
 
 export function deleteEducation(id: number): Promise<void> {
   return apiRequest<void>(`/api/user/cv/education/${id}`, {
     method: "DELETE",
-    token: getToken(),
   });
 }
 
@@ -81,7 +76,6 @@ export function deleteEducation(id: number): Promise<void> {
 export function getExperience(): Promise<ExperienceResponse[]> {
   return apiRequest<ExperienceResponse[]>("/api/user/cv/experience", {
     method: "GET",
-    token: getToken(),
   });
 }
 
@@ -91,7 +85,6 @@ export function addExperience(
   return apiRequest<ExperienceResponse>("/api/user/cv/experience", {
     method: "POST",
     body: request,
-    token: getToken(),
   });
 }
 
@@ -102,14 +95,37 @@ export function updateExperience(
   return apiRequest<ExperienceResponse>(`/api/user/cv/experience/${id}`, {
     method: "PUT",
     body: request,
-    token: getToken(),
   });
 }
 
 export function deleteExperience(id: number): Promise<void> {
   return apiRequest<void>(`/api/user/cv/experience/${id}`, {
     method: "DELETE",
-    token: getToken(),
+  });
+}
+
+// Projects
+
+export function addProject(request: ProjectRequest): Promise<ProjectResponse> {
+  return apiRequest<ProjectResponse>("/api/user/cv/projects", {
+    method: "POST",
+    body: request,
+  });
+}
+
+export function updateProject(
+  id: number,
+  request: ProjectRequest,
+): Promise<ProjectResponse> {
+  return apiRequest<ProjectResponse>(`/api/user/cv/projects/${id}`, {
+    method: "PUT",
+    body: request,
+  });
+}
+
+export function deleteProject(id: number): Promise<void> {
+  return apiRequest<void>(`/api/user/cv/projects/${id}`, {
+    method: "DELETE",
   });
 }
 
@@ -118,7 +134,6 @@ export function deleteExperience(id: number): Promise<void> {
 export function getSkills(): Promise<SkillResponse[]> {
   return apiRequest<SkillResponse[]>("/api/user/cv/skills", {
     method: "GET",
-    token: getToken(),
   });
 }
 
@@ -126,7 +141,6 @@ export function addSkill(request: SkillRequest): Promise<SkillResponse> {
   return apiRequest<SkillResponse>("/api/user/cv/skills", {
     method: "POST",
     body: request,
-    token: getToken(),
   });
 }
 
@@ -137,14 +151,12 @@ export function updateSkill(
   return apiRequest<SkillResponse>(`/api/user/cv/skills/${id}`, {
     method: "PUT",
     body: request,
-    token: getToken(),
   });
 }
 
 export function deleteSkill(id: number): Promise<void> {
   return apiRequest<void>(`/api/user/cv/skills/${id}`, {
     method: "DELETE",
-    token: getToken(),
   });
 }
 
@@ -153,29 +165,25 @@ export function deleteSkill(id: number): Promise<void> {
 export function uploadCVPhoto(file: File): Promise<UploadResponse> {
   return apiMultipartRequest<UploadResponse>(
     "/api/user/cv/photo",
-    file,
-    getToken()
+    file
   );
 }
 
 export function deleteCVPhoto(): Promise<void> {
   return apiRequest<void>("/api/user/cv/photo", {
     method: "DELETE",
-    token: getToken(),
   });
 }
 
 export function uploadCVPdf(file: File): Promise<UploadResponse> {
   return apiMultipartRequest<UploadResponse>(
     "/api/user/cv/pdf",
-    file,
-    getToken()
+    file
   );
 }
 
 export function deleteCVPdf(): Promise<void> {
   return apiRequest<void>("/api/user/cv/pdf", {
     method: "DELETE",
-    token: getToken(),
   });
 }

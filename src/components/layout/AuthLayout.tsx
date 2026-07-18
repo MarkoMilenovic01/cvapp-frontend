@@ -10,7 +10,8 @@ type AuthLayoutVariant =
   | "login"
   | "register"
   | "forgot-password"
-  | "reset-password";
+  | "reset-password"
+  | "verify-email";
 
 type AuthLayoutProps = {
   title: string;
@@ -117,6 +118,18 @@ const AUTH_CONTENT: Record<AuthLayoutVariant, AuthContent> = {
     description:
       "Izaberi novu lozinku za svoj nalog. Nakon uspešnog resetovanja možeš odmah da se prijaviš.",
   },
+  "verify-email": {
+    eyebrow: "Aktivacija naloga",
+    headline: (
+      <>
+        Još samo potvrdi
+        <br />
+        svoju email adresu.
+      </>
+    ),
+    description:
+      "Otvorite link iz poruke koju smo poslali. Ako poruka nije stigla, možete odmah zatražiti novu.",
+  },
 };
 
 export function AuthLayout({
@@ -128,7 +141,9 @@ export function AuthLayout({
   const content = AUTH_CONTENT[variant];
 
   const isRecoveryFlow =
-    variant === "forgot-password" || variant === "reset-password";
+    variant === "forgot-password" ||
+    variant === "reset-password" ||
+    variant === "verify-email";
 
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-[#075486] text-slate-900">
@@ -277,7 +292,9 @@ export function AuthLayout({
                 <p className="mt-2 text-sm leading-6 text-white/65">
                   {variant === "forgot-password"
                     ? "Ako postoji nalog sa tom email adresom, dobićeš link za resetovanje lozinke. Iz bezbednosnih razloga, ne prikazujemo da li je email registrovan."
-                    : "Postavi novu lozinku i nakon toga se prijavi ponovo. Izaberi lozinku koju ne koristiš na drugim mestima."}
+                    : variant === "reset-password"
+                      ? "Postavi novu lozinku i nakon toga se prijavi ponovo. Izaberi lozinku koju ne koristiš na drugim mestima."
+                      : "Verifikacioni link je vremenski ograničen. Ako je istekao, zatraži novu poruku koristeći istu email adresu."}
                 </p>
               </div>
             )}

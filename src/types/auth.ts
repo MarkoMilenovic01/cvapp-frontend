@@ -15,20 +15,27 @@ export interface ForgotPasswordRequest {
   email: string;
 }
 
+export interface VerifyEmailRequest {
+  token: string;
+}
+
+export interface ResendVerificationRequest {
+  email: string;
+}
+
 export interface ResetPasswordRequest {
   token: string;
   password: string;
   confirmPassword: string;
 }
 
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}
-
 export interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
   role: Role;
+}
+
+export interface RegisterResponse {
+  message: string;
 }
 
 export interface AcceptCompanyInviteRequest{
@@ -46,6 +53,6 @@ export interface ApiErrorBody {
   details?: Record<string, string>;
 }
 
-export interface OAuthExchangeRequest {
-  code: string;
+export interface GoogleLoginRequest {
+  idToken: string;
 }

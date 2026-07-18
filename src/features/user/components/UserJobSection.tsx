@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  CircleAlert,
+  LoaderCircle,
+  MapPin,
+  Search,
+  Send,
+  X,
+} from "lucide-react";
 
 import { ApiError } from "@/api/apiClient";
 import * as jobApi from "@/api/jobApi";
@@ -17,7 +28,11 @@ const emptyFilter: JobSearchFilter = {
   location: "",
   employmentType: "",
   workMode: "",
+  companyName: "",
 };
+
+type FilterErrors = Partial<Record<"keyword" | "location" | "companyName", string>>;
+type Status = { type: "success" | "error"; message: string } | null;
 
 const inputClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#1375bc] focus:ring-4 focus:ring-[#1375bc]/10";
@@ -47,18 +62,80 @@ function hasActiveFilter(filter: JobSearchFilter) {
     filter.keyword.trim() ||
       filter.location.trim() ||
       filter.employmentType ||
-      filter.workMode,
+      filter.workMode ||
+      filter.companyName.trim(),
   );
+}
+
+function validateFilter(filter: JobSearchFilter) {
+  const errors: FilterErrors = {};
+
+  if (filter.keyword.trim().length > 200) {
+    errors.keyword = "Ključna reč može imati najviše 200 karaktera.";
+  }
+
+  if (filter.location.trim().length > 255) {
+    errors.location = "Lokacija može imati najviše 255 karaktera.";
+  }
+
+  if (filter.companyName.trim().length > 255) {
+    errors.companyName = "Naziv kompanije može imati najviše 255 karaktera.";
+  }
+
+  return errors;
+}
+
+function cleanFilter(filter: JobSearchFilter): JobSearchFilter {
+  return {
+    ...filter,
+    keyword: filter.keyword.trim(),
+    location: filter.location.trim(),
+    companyName: filter.companyName.trim(),
+  };
 }
 
 function formatValue(value?: string | null) {
   return value && value.trim() ? value : "-";
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return "Nije naveden";
+
+  return new Date(`${value}T00:00:00`).toLocaleDateString("sr-RS", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function getEmploymentTypeLabel(value: JobResponse["employmentType"]) {
+  const labels = {
+    INTERNSHIP: "Praksa",
+    STUDENT_WORK: "Studentski posao",
+    PART_TIME: "Nepuno radno vreme",
+    FULL_TIME: "Puno radno vreme",
+  };
+
+  return labels[value];
+}
+
+function getWorkModeLabel(value: JobResponse["workMode"]) {
+  const labels = {
+    ONSITE: "U kancelariji",
+    REMOTE: "Rad na daljinu",
+    HYBRID: "Hibridno",
+  };
+
+  return labels[value];
+}
+
 export default function UserJobsSection() {
   const navigate = useNavigate();
 
   const [filter, setFilter] = useState<JobSearchFilter>(emptyFilter);
+  const [activeFilter, setActiveFilter] =
+    useState<JobSearchFilter>(emptyFilter);
+  const [filterErrors, setFilterErrors] = useState<FilterErrors>({});
   const [page, setPage] = useState(0);
 
   const [jobPage, setJobPage] = useState<PageResponse<JobResponse> | null>(
@@ -71,11 +148,18 @@ export default function UserJobsSection() {
   );
 
   const [loading, setLoading] = useState(true);
+  const [applicationsLoading, setApplicationsLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [isApplying, setIsApplying] = useState<number | null>(null);
 
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [status, setStatus] = useState<Status>(null);
+
+  useEffect(() => {
+    if (!status) return;
+
+    const timeout = window.setTimeout(() => setStatus(null), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [status]);
 
   async function loadJobs(
     nextPage = page,
@@ -83,7 +167,7 @@ export default function UserJobsSection() {
   ) {
     try {
       setLoading(true);
-      setError("");
+      setStatus(null);
 
       const response = hasActiveFilter(nextFilter)
         ? await jobApi.searchJobs(nextFilter, nextPage)
@@ -91,13 +175,15 @@ export default function UserJobsSection() {
 
       setJobPage(response);
       setPage(response.number);
+      setActiveFilter(nextFilter);
     } catch (err) {
-      setError(
-        getErrorMessage(
+      setStatus({
+        type: "error",
+        message: getErrorMessage(
           err,
-          "Došlo je do greške prilikom učitavanja praksi.",
+          "Došlo je do greške prilikom učitavanja pozicija.",
         ),
-      );
+      });
     } finally {
       setLoading(false);
     }
@@ -105,19 +191,25 @@ export default function UserJobsSection() {
 
   async function loadApplications() {
     try {
+      setApplicationsLoading(true);
       const response = await jobApi.getMyApplications();
       setApplications(response);
     } catch (err) {
-      setError(
-        getErrorMessage(
+      setStatus({
+        type: "error",
+        message: getErrorMessage(
           err,
           "Došlo je do greške prilikom učitavanja prijava.",
         ),
-      );
+      });
+    } finally {
+      setApplicationsLoading(false);
     }
   }
 
   useEffect(() => {
+    // Initial API synchronization is intentionally performed after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadJobs(0, emptyFilter);
     void loadApplications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,16 +218,28 @@ export default function UserJobsSection() {
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    setSelectedJob(null);
-    setMessage("");
+    const errors = validateFilter(filter);
+    setFilterErrors(errors);
 
-    await loadJobs(0, filter);
+    if (Object.keys(errors).length > 0) {
+      setStatus({
+        type: "error",
+        message: "Proveri označena polja za pretragu.",
+      });
+      return;
+    }
+
+    const cleanedFilter = cleanFilter(filter);
+    setFilter(cleanedFilter);
+    setSelectedJob(null);
+
+    await loadJobs(0, cleanedFilter);
   }
 
   async function handleClearSearch() {
     setFilter(emptyFilter);
+    setFilterErrors({});
     setSelectedJob(null);
-    setMessage("");
 
     await loadJobs(0, emptyFilter);
   }
@@ -143,18 +247,19 @@ export default function UserJobsSection() {
   async function handleViewJob(id: number) {
     try {
       setDetailsLoading(true);
-      setMessage("");
-      setError("");
+      setStatus(null);
+      setSelectedJob(null);
 
       const response = await jobApi.getActiveJobById(id);
       setSelectedJob(response);
     } catch (err) {
-      setError(
-        getErrorMessage(
+      setStatus({
+        type: "error",
+        message: getErrorMessage(
           err,
           "Došlo je do greške prilikom učitavanja detalja.",
         ),
-      );
+      });
     } finally {
       setDetailsLoading(false);
     }
@@ -163,15 +268,20 @@ export default function UserJobsSection() {
   async function handleApply(jobId: number) {
     try {
       setIsApplying(jobId);
-      setMessage("");
-      setError("");
+      setStatus(null);
 
       await jobApi.applyToJob(jobId);
 
-      setMessage("Prijava je uspešno poslata.");
+      setStatus({ type: "success", message: "Prijava je uspešno poslata." });
       await loadApplications();
     } catch (err) {
-      setError(getErrorMessage(err, "Došlo je do greške prilikom prijave."));
+      setStatus({
+        type: "error",
+        message: getErrorMessage(
+          err,
+          "Došlo je do greške prilikom slanja prijave.",
+        ),
+      });
     } finally {
       setIsApplying(null);
     }
@@ -211,23 +321,12 @@ export default function UserJobsSection() {
         </div>
 
         <div className="space-y-6 p-6 sm:p-8">
-          {message && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-              {message}
-            </div>
-          )}
-
-          {error && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {error}
-            </div>
-          )}
-
           <form
             onSubmit={handleSearch}
             className="rounded-3xl border border-slate-200 bg-slate-50 p-5"
           >
             <div className="mb-5">
+              <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
               <h3 className="text-lg font-bold text-slate-950">Pretraga</h3>
 
               <p className="mt-1 text-sm text-slate-500">
@@ -236,31 +335,63 @@ export default function UserJobsSection() {
               </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Field label="Ključna reč">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <Field label="Ključna reč" error={filterErrors.keyword}>
                 <input
                   value={filter.keyword}
                   placeholder="Backend, Java, React..."
-                  onChange={(event) =>
+                  maxLength={201}
+                  aria-invalid={Boolean(filterErrors.keyword)}
+                  onChange={(event) => {
+                    setFilterErrors((current) => ({
+                      ...current,
+                      keyword: undefined,
+                    }));
                     setFilter((current) => ({
                       ...current,
                       keyword: event.target.value,
-                    }))
-                  }
+                    }));
+                  }}
                   className={inputClass}
                 />
               </Field>
 
-              <Field label="Lokacija">
+              <Field label="Lokacija" error={filterErrors.location}>
                 <input
                   value={filter.location}
                   placeholder="Niš, Beograd, Remote..."
-                  onChange={(event) =>
+                  maxLength={256}
+                  aria-invalid={Boolean(filterErrors.location)}
+                  onChange={(event) => {
+                    setFilterErrors((current) => ({
+                      ...current,
+                      location: undefined,
+                    }));
                     setFilter((current) => ({
                       ...current,
                       location: event.target.value,
-                    }))
-                  }
+                    }));
+                  }}
+                  className={inputClass}
+                />
+              </Field>
+
+              <Field label="Kompanija" error={filterErrors.companyName}>
+                <input
+                  value={filter.companyName}
+                  placeholder="Naziv kompanije"
+                  maxLength={256}
+                  aria-invalid={Boolean(filterErrors.companyName)}
+                  onChange={(event) => {
+                    setFilterErrors((current) => ({
+                      ...current,
+                      companyName: undefined,
+                    }));
+                    setFilter((current) => ({
+                      ...current,
+                      companyName: event.target.value,
+                    }));
+                  }}
                   className={inputClass}
                 />
               </Field>
@@ -306,12 +437,18 @@ export default function UserJobsSection() {
             </div>
 
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-              <button type="submit" className={primaryButtonClass}>
-                Pretraži prakse
+              <button
+                type="submit"
+                disabled={loading}
+                className={`${primaryButtonClass} gap-2`}
+              >
+                {loading ? <LoadingSpinner /> : <Search className="h-4 w-4" />}
+                Pretraži pozicije
               </button>
 
               <button
                 type="button"
+                disabled={loading}
                 onClick={handleClearSearch}
                 className={secondaryButtonClass}
               >
@@ -324,6 +461,7 @@ export default function UserJobsSection() {
             <div className="space-y-4">
               <div className="flex items-end justify-between gap-4">
                 <div>
+                  <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
                   <h3 className="text-xl font-bold text-slate-950">
                     Dostupne pozicije
                   </h3>
@@ -339,8 +477,11 @@ export default function UserJobsSection() {
               </div>
 
               {loading ? (
-                <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
-                  Učitavanje pozicija...
+                <div className="flex min-h-40 items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+                  <span className="inline-flex items-center gap-2">
+                    <LoadingSpinner />
+                    Učitavanje pozicija...
+                  </span>
                 </div>
               ) : (
                 <>
@@ -371,6 +512,8 @@ export default function UserJobsSection() {
                               : "border-slate-200 hover:border-[#1375bc]/40",
                           ].join(" ")}
                         >
+                          <div className="mb-4 h-1 w-9 rounded-full bg-[#ffd21e]" />
+
                           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div>
                               <h4 className="text-lg font-bold text-slate-950">
@@ -378,13 +521,17 @@ export default function UserJobsSection() {
                               </h4>
 
                               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                                <span className="font-medium text-slate-700">
+                                <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
+                                  <Building2 className="h-4 w-4 text-[#1375bc]" />
                                   {job.companyName}
                                 </span>
 
                                 <span>•</span>
 
-                                <span>{formatValue(job.location)}</span>
+                                <span className="inline-flex items-center gap-1.5">
+                                  <MapPin className="h-4 w-4" />
+                                  {formatValue(job.location)}
+                                </span>
                               </div>
                             </div>
 
@@ -400,9 +547,12 @@ export default function UserJobsSection() {
                           </div>
 
                           <div className="mt-4 flex flex-wrap gap-2">
-                            <Badge>{formatValue(job.employmentType)}</Badge>
-                            <Badge>{formatValue(job.workMode)}</Badge>
-                            <Badge>Rok: {formatValue(job.deadline)}</Badge>
+                            <Badge>{getEmploymentTypeLabel(job.employmentType)}</Badge>
+                            <Badge>{getWorkModeLabel(job.workMode)}</Badge>
+                            <Badge>
+                              <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+                              Rok: {formatDate(job.deadline)}
+                            </Badge>
                           </div>
 
                           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
@@ -416,12 +566,22 @@ export default function UserJobsSection() {
 
                             <button
                               type="button"
-                              disabled={applied || isApplying === job.id}
+                              disabled={
+                                applied ||
+                                applicationsLoading ||
+                                isApplying === job.id
+                              }
                               onClick={() => handleApply(job.id)}
-                              className={primaryButtonClass}
+                              className={`${primaryButtonClass} gap-2`}
                             >
+                              {isApplying === job.id && <LoadingSpinner />}
+                              {!applied && isApplying !== job.id && (
+                                <Send className="h-4 w-4" />
+                              )}
                               {applied
                                 ? "Već si prijavljen/a"
+                                : applicationsLoading
+                                  ? "Provera prijave..."
                                 : isApplying === job.id
                                   ? "Slanje prijave..."
                                   : "Prijavi se"}
@@ -437,7 +597,7 @@ export default function UserJobsSection() {
                       <button
                         type="button"
                         disabled={jobPage.first}
-                        onClick={() => loadJobs(page - 1, filter)}
+                        onClick={() => loadJobs(page - 1, activeFilter)}
                         className={secondaryButtonClass}
                       >
                         Prethodna
@@ -457,7 +617,7 @@ export default function UserJobsSection() {
                       <button
                         type="button"
                         disabled={jobPage.last}
-                        onClick={() => loadJobs(page + 1, filter)}
+                        onClick={() => loadJobs(page + 1, activeFilter)}
                         className={secondaryButtonClass}
                       >
                         Sledeća
@@ -470,12 +630,14 @@ export default function UserJobsSection() {
 
             <aside className="xl:sticky xl:top-6 xl:self-start">
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1375bc]">
                   Detalji pozicije
                 </p>
 
                 {detailsLoading && (
-                  <p className="mt-5 text-sm font-medium text-slate-500">
+                  <p className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-slate-500">
+                    <LoadingSpinner />
                     Učitavanje detalja...
                   </p>
                 )}
@@ -504,9 +666,14 @@ export default function UserJobsSection() {
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Badge>{formatValue(selectedJob.location)}</Badge>
-                      <Badge>{formatValue(selectedJob.employmentType)}</Badge>
-                      <Badge>{formatValue(selectedJob.workMode)}</Badge>
-                      <Badge>Rok: {formatValue(selectedJob.deadline)}</Badge>
+                      <Badge>
+                        {getEmploymentTypeLabel(selectedJob.employmentType)}
+                      </Badge>
+                      <Badge>{getWorkModeLabel(selectedJob.workMode)}</Badge>
+                      <Badge>
+                        <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+                        Rok: {formatDate(selectedJob.deadline)}
+                      </Badge>
                     </div>
 
                     <DetailBlock title="Opis">
@@ -522,13 +689,21 @@ export default function UserJobsSection() {
                         type="button"
                         disabled={
                           hasApplied(selectedJob.id) ||
+                          applicationsLoading ||
                           isApplying === selectedJob.id
                         }
                         onClick={() => handleApply(selectedJob.id)}
-                        className={primaryButtonClass}
+                        className={`${primaryButtonClass} gap-2`}
                       >
+                        {isApplying === selectedJob.id && <LoadingSpinner />}
+                        {!hasApplied(selectedJob.id) &&
+                          isApplying !== selectedJob.id && (
+                            <Send className="h-4 w-4" />
+                          )}
                         {hasApplied(selectedJob.id)
                           ? "Već si prijavljen/a"
+                          : applicationsLoading
+                            ? "Provera prijave..."
                           : isApplying === selectedJob.id
                             ? "Slanje prijave..."
                             : "Prijavi se"}
@@ -551,21 +726,31 @@ export default function UserJobsSection() {
           </div>
         </div>
       </div>
+
+      <StatusToast status={status} onClose={() => setStatus(null)} />
     </section>
   );
 }
 
 function Field({
   label,
+  error,
   children,
 }: {
   label: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="block space-y-2">
       <span className="text-sm font-semibold text-slate-700">{label}</span>
       {children}
+      {error && (
+        <span className="flex items-start gap-1.5 text-xs font-medium text-red-600">
+          <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {error}
+        </span>
+      )}
     </label>
   );
 }
@@ -592,6 +777,66 @@ function DetailBlock({
       <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">
         {children}
       </p>
+    </div>
+  );
+}
+
+function LoadingSpinner() {
+  return <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />;
+}
+
+function StatusToast({
+  status,
+  onClose,
+}: {
+  status: Status;
+  onClose: () => void;
+}) {
+  if (!status) return null;
+
+  const success = status.type === "success";
+
+  return (
+    <div
+      role={success ? "status" : "alert"}
+      aria-live={success ? "polite" : "assertive"}
+      className={[
+        "fixed bottom-5 right-5 z-50 flex w-[calc(100%-2.5rem)] max-w-sm items-start gap-3 rounded-2xl border bg-white p-4 shadow-2xl",
+        success ? "border-emerald-200" : "border-red-200",
+      ].join(" ")}
+    >
+      <span
+        className={[
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+          success
+            ? "bg-emerald-50 text-emerald-600"
+            : "bg-red-50 text-red-600",
+        ].join(" ")}
+      >
+        {success ? (
+          <CheckCircle2 className="h-5 w-5" />
+        ) : (
+          <CircleAlert className="h-5 w-5" />
+        )}
+      </span>
+
+      <div className="min-w-0 flex-1 pt-0.5">
+        <p className="text-sm font-bold text-slate-900">
+          {success ? "Uspešno" : "Došlo je do greške"}
+        </p>
+        <p className="mt-1 text-sm leading-5 text-slate-600">
+          {status.message}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Zatvori obaveštenje"
+        className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }

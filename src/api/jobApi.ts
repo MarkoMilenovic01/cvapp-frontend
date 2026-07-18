@@ -8,9 +8,6 @@ import type {
   UpdateApplicationStatusRequest
 } from "../types/job";
 
-function getToken() {
-  return localStorage.getItem("accessToken");
-}
 
 function buildQuery(params: Record<string, string | number | null | undefined>) {
   const searchParams = new URLSearchParams();
@@ -34,14 +31,12 @@ export function getAllActiveJobs(
 
   return apiRequest<PageResponse<JobResponse>>(`/api/jobs${query}`, {
     method: "GET",
-    token: getToken(),
   });
 }
 
 export function getActiveJobById(id: number): Promise<JobResponse> {
   return apiRequest<JobResponse>(`/api/jobs/${id}`, {
     method: "GET",
-    token: getToken(),
   });
 }
 
@@ -55,13 +50,13 @@ export function searchJobs(
     location: filter.location,
     employmentType: filter.employmentType,
     workMode: filter.workMode,
+    companyName: filter.companyName,
     page,
     size,
   });
 
   return apiRequest<PageResponse<JobResponse>>(`/api/jobs/search${query}`, {
     method: "GET",
-    token: getToken(),
   });
 }
 
@@ -70,7 +65,6 @@ export function applyToJob(jobId: number): Promise<JobApplicationResponse> {
     `/api/user/applications/jobs/${jobId}/apply`,
     {
       method: "POST",
-      token: getToken(),
     }
   );
 }
@@ -78,14 +72,12 @@ export function applyToJob(jobId: number): Promise<JobApplicationResponse> {
 export function getMyApplications(): Promise<JobApplicationResponse[]> {
   return apiRequest<JobApplicationResponse[]>("/api/user/applications", {
     method: "GET",
-    token: getToken(),
   });
 }
 
 export function withdrawApplication(applicationId: number): Promise<void> {
   return apiRequest<void>(`/api/user/applications/${applicationId}`, {
     method: "DELETE",
-    token: getToken(),
   });
 }
 
@@ -94,7 +86,6 @@ export function createCompanyJob(request: JobRequest): Promise<JobResponse> {
   return apiRequest<JobResponse>("/api/company/jobs", {
     method: "POST",
     body: request,
-    token: getToken(),
   });
 }
 
@@ -106,14 +97,12 @@ export function getMyCompanyJobs(
 
   return apiRequest<PageResponse<JobResponse>>(`/api/company/jobs${query}`, {
     method: "GET",
-    token: getToken(),
   });
 }
 
 export function getMyCompanyJobById(id: number): Promise<JobResponse> {
   return apiRequest<JobResponse>(`/api/company/jobs/${id}`, {
     method: "GET",
-    token: getToken(),
   });
 }
 
@@ -124,14 +113,12 @@ export function updateCompanyJob(
   return apiRequest<JobResponse>(`/api/company/jobs/${id}`, {
     method: "PUT",
     body: request,
-    token: getToken(),
   });
 }
 
 export function deleteCompanyJob(id: number): Promise<void> {
   return apiRequest<void>(`/api/company/jobs/${id}`, {
     method: "DELETE",
-    token: getToken(),
   });
 }
 
@@ -142,7 +129,6 @@ export function getApplicationsForJob(
     `/api/company/jobs/${jobId}/applications`,
     {
       method: "GET",
-      token: getToken(),
     }
   );
 }
@@ -156,8 +142,6 @@ export function updateApplicationStatus(
     {
       method: "PATCH",
       body: request,
-      token: getToken(),
     }
   );
 }
-

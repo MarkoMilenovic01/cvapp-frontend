@@ -1,23 +1,32 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { Power, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 
 import { ApiError } from "@/api/apiClient";
 import * as adminApi from "@/api/adminApi";
+import {
+  AdminLoadingSpinner,
+  AdminStatusToast,
+} from "@/features/admin/components/AdminSectionUI";
 
-import type { AdminUserResponse, PageResponse } from "@/types/admin";
+import type {
+  AdminAssignableRole,
+  AdminUserResponse,
+  PageResponse,
+} from "@/types/admin";
 import type { Role } from "@/types/auth";
 
 const refreshButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60";
 
 const selectClass =
   "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[#1375bc] focus:ring-4 focus:ring-[#1375bc]/10 disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#1375bc]/30 hover:bg-[#f3f8fc] hover:text-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 const dangerButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-5 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (err instanceof ApiError) {
@@ -83,6 +92,8 @@ export default function AdminUsersSection() {
   );
 
   useEffect(() => {
+    // Initial API synchronization is intentionally performed after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadUsers(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -109,7 +120,13 @@ export default function AdminUsersSection() {
     }
   }
 
-  async function handleChangeUserRole(id: number, role: Role) {
+  async function handleChangeUserRole(id: number, role: AdminAssignableRole) {
+    const confirmed = window.confirm(
+      `Da li želiš da promeniš ulogu korisnika na ${role}?`,
+    );
+
+    if (!confirmed) return;
+
     try {
       setUpdatingId(id);
       setMessage("");
@@ -188,24 +205,17 @@ export default function AdminUsersSection() {
             disabled={loading}
             className={refreshButtonClass}
           >
+            {loading ? (
+              <AdminLoadingSpinner />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
             {loading ? "Osvežavanje..." : "Osveži"}
           </button>
         </div>
       </div>
 
       <div className="space-y-6 p-6 sm:p-8">
-        {message && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-
         <SectionTitle
           title="Lista korisnika"
           description={`Ukupno korisnika: ${
@@ -228,6 +238,8 @@ export default function AdminUsersSection() {
                   key={user.id}
                   className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#1375bc]/40"
                 >
+                  <div className="mb-4 h-1 w-9 rounded-full bg-[#ffd21e]" />
+
                   <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -268,20 +280,33 @@ export default function AdminUsersSection() {
                       <Field label="Promeni ulogu">
                         <select
                           value={user.role}
-                          disabled={updating || deleting}
+                          disabled={
+                            updating || deleting || user.role === "COMPANY"
+                          }
                           onChange={(event) =>
                             handleChangeUserRole(
                               user.id,
-                              event.target.value as Role,
+                              event.target.value as AdminAssignableRole,
                             )
                           }
                           className={selectClass}
                         >
-                          <option value="USER">USER</option>
-                          <option value="COMPANY">COMPANY</option>
-                          <option value="ADMIN">ADMIN</option>
+                          {user.role === "COMPANY" ? (
+                            <option value="COMPANY">COMPANY</option>
+                          ) : (
+                            <>
+                              <option value="USER">USER</option>
+                              <option value="ADMIN">ADMIN</option>
+                            </>
+                          )}
                         </select>
                       </Field>
+
+                      {user.role === "COMPANY" && (
+                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                          Uloga kompanijskog naloga se ne može menjati.
+                        </p>
+                      )}
 
                       <div className="mt-4 flex flex-col gap-3 sm:flex-row xl:flex-col">
                         <button
@@ -290,6 +315,13 @@ export default function AdminUsersSection() {
                           disabled={updating || deleting}
                           className={secondaryButtonClass}
                         >
+                          {updating ? (
+                            <AdminLoadingSpinner />
+                          ) : user.enabled ? (
+                            <Power className="h-4 w-4 text-[#1375bc]" />
+                          ) : (
+                            <ShieldCheck className="h-4 w-4 text-[#1375bc]" />
+                          )}
                           {updating
                             ? "Ažuriranje..."
                             : user.enabled
@@ -303,6 +335,11 @@ export default function AdminUsersSection() {
                           disabled={updating || deleting}
                           className={dangerButtonClass}
                         >
+                          {deleting ? (
+                            <AdminLoadingSpinner />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                           {deleting ? "Brisanje..." : "Obriši korisnika"}
                         </button>
                       </div>
@@ -325,6 +362,15 @@ export default function AdminUsersSection() {
           />
         )}
       </div>
+
+      <AdminStatusToast
+        message={message}
+        error={error}
+        onClose={() => {
+          setMessage("");
+          setError("");
+        }}
+      />
     </section>
   );
 }
@@ -338,6 +384,7 @@ function SectionTitle({
 }) {
   return (
     <div>
+      <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
       <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-950">
         {title}
       </h3>
@@ -421,8 +468,11 @@ function StatusBadge({
 
 function LoadingCard({ text }: { text: string }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
-      {text}
+    <div className="flex min-h-40 items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+      <span className="inline-flex items-center gap-2">
+        <AdminLoadingSpinner />
+        {text}
+      </span>
     </div>
   );
 }

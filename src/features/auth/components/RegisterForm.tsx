@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Check, X } from "lucide-react";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -11,9 +12,7 @@ import { Separator } from "@/components/ui/separator";
 
 import { ApiError } from "@/api/apiClient";
 import { useAuth } from "@/context/AuthContext";
-import { GoogleButton } from "@/features/auth/components/GoogleButton";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getDashboardPath } from "@/utils/authRedirect";
 
 const EMAIL_MAX_LENGTH = 254;
 const PASSWORD_MIN_LENGTH = 8;
@@ -129,13 +128,14 @@ function PasswordRequirements({ password }: { password: string }) {
 
 export function RegisterForm() {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
@@ -159,13 +159,16 @@ export function RegisterForm() {
     setIsSubmitting(true);
 
     try {
-      await register({
+      const resp = await register({
         email: email.trim(),
         password,
         confirmPassword,
       });
 
-      navigate("/", { replace: true });
+      setSuccessMessage(resp.message ?? "Uspešna registracija. Proverite email.");
+      navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`, {
+        replace: true,
+      });
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -178,13 +181,18 @@ export function RegisterForm() {
     }
   }
 
-  function handleGoogleLogin() {
-    if (!API_BASE_URL) {
-      setError("Osnovni API URL nije podešen.");
+  async function handleGoogleSuccess(credentialResponse: CredentialResponse) {
+    if (!credentialResponse.credential) {
+      setError("Google prijava nije uspela.");
       return;
     }
 
-    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
+    try {
+      const response = await loginWithGoogle(credentialResponse.credential);
+      navigate(getDashboardPath(response.role), { replace: true });
+    } catch {
+      setError("Došlo je do greške prilikom Google prijave.");
+    }
   }
 
   function handleEmailChange(value: string) {
@@ -233,6 +241,12 @@ export function RegisterForm() {
       {error && (
         <Alert variant="destructive" className="mb-5">
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {successMessage && (
+        <Alert variant="default" className="mb-5">
+          <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
 
@@ -317,7 +331,14 @@ export function RegisterForm() {
         <Separator className="flex-1" />
       </div>
 
-      <GoogleButton onClick={handleGoogleLogin} />
+      <GoogleLogin
+        onSuccess={handleGoogleSuccess}
+        onError={() => setError("Google prijava nije uspela.")}
+        theme="outline"
+        size="large"
+        width="100%"
+        text="continue_with"
+      />
 
       <div className="mt-6 flex items-center justify-center gap-3 text-sm text-slate-500">
         <span>Već imate nalog?</span>

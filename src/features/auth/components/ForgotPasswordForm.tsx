@@ -1,4 +1,4 @@
-    import { useState } from "react";
+import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { ApiError } from "@/api/apiClient";
-import { forgotPassword } from "@/api/authApi";
+import { useAuth } from "@/context/AuthContext";
 
 const EMAIL_MAX_LENGTH = 254;
 
@@ -29,6 +29,7 @@ function validateForgotPasswordFields(email: string) {
 }
 
 export function ForgotPasswordForm() {
+  const { forgotPassword } = useAuth();
   const [email, setEmail] = useState("");
 
   const [error, setError] = useState("");

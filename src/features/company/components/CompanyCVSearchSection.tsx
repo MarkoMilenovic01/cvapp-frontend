@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import { CircleAlert, Eye, RefreshCw, Search, Star, StarOff } from "lucide-react";
 
 import { ApiError } from "@/api/apiClient";
 import * as companyApi from "@/api/companyApi";
 import CompanyCVDetailsPanel from "@/features/company/components/CompanyCVDetailsPanel";
+import {
+  CompanyLoadingSpinner,
+  CompanyStatusToast,
+} from "@/features/company/components/CompanySectionUI";
 import type {
   CompanyCVDetailResponse,
   CompanyCVSummaryResponse,
@@ -17,14 +22,42 @@ const emptySearch: CVSearchRequest = {
   location: "",
 };
 
+type SearchErrors = Partial<Record<keyof CVSearchRequest, string>>;
+
+function validateSearch(search: CVSearchRequest) {
+  const errors: SearchErrors = {};
+
+  if (search.keyword.length > 200) {
+    errors.keyword = "Ključna reč može imati najviše 200 karaktera.";
+  }
+
+  if (search.skill.length > 100) {
+    errors.skill = "Veština može imati najviše 100 karaktera.";
+  }
+
+  if (search.location.length > 255) {
+    errors.location = "Lokacija može imati najviše 255 karaktera.";
+  }
+
+  return errors;
+}
+
+function cleanSearch(search: CVSearchRequest): CVSearchRequest {
+  return {
+    keyword: search.keyword.trim(),
+    skill: search.skill.trim(),
+    location: search.location.trim(),
+  };
+}
+
 const inputClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#1375bc] focus:ring-4 focus:ring-[#1375bc]/10";
 
 const primaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl bg-[#1375bc] px-4 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#1375bc] px-5 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#1375bc]/30 hover:bg-[#f3f8fc] hover:text-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (err instanceof ApiError) {
@@ -43,6 +76,9 @@ function hasActiveSearch(search: CVSearchRequest) {
 
 export default function CompanyCVSearchSection() {
   const [search, setSearch] = useState<CVSearchRequest>(emptySearch);
+  const [activeSearch, setActiveSearch] =
+    useState<CVSearchRequest>(emptySearch);
+  const [validationErrors, setValidationErrors] = useState<SearchErrors>({});
   const [page, setPage] = useState(0);
 
   const [cvPage, setCvPage] =
@@ -72,6 +108,7 @@ export default function CompanyCVSearchSection() {
 
         setCvPage(response);
         setPage(response.number);
+        setActiveSearch(nextSearch);
       } catch (err) {
         setError(
           getErrorMessage(
@@ -87,6 +124,8 @@ export default function CompanyCVSearchSection() {
   );
 
   useEffect(() => {
+    // Initial API synchronization is intentionally performed after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadCVs(0, emptySearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -94,18 +133,40 @@ export default function CompanyCVSearchSection() {
   async function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    const errors = validateSearch(search);
+    setValidationErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setMessage("");
+      setError("Proveri označena polja za pretragu.");
+      return;
+    }
+
+    const cleanedSearch = cleanSearch(search);
+    setSearch(cleanedSearch);
+
     setSelectedCV(null);
     setMessage("");
 
-    await loadCVs(0, search);
+    await loadCVs(0, cleanedSearch);
   }
 
   async function handleClearSearch() {
     setSearch(emptySearch);
+    setValidationErrors({});
     setSelectedCV(null);
     setMessage("");
 
     await loadCVs(0, emptySearch);
+  }
+
+  function updateSearchField<K extends keyof CVSearchRequest>(
+    field: K,
+    value: CVSearchRequest[K],
+  ) {
+    setValidationErrors((current) => ({ ...current, [field]: undefined }));
+    setError("");
+    setSearch((current) => ({ ...current, [field]: value }));
   }
 
   async function handleOpenCV(cvId: number) {
@@ -211,29 +272,24 @@ export default function CompanyCVSearchSection() {
 
           <button
             type="button"
-            onClick={() => void loadCVs(page, search)}
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15"
+            onClick={() => void loadCVs(page, activeSearch)}
+            disabled={loading}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
+            {loading ? (
+              <CompanyLoadingSpinner />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
             Osveži
           </button>
         </div>
       </div>
 
       <div className="space-y-6 p-6 sm:p-8">
-        {message && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-
         <form
           onSubmit={handleSearchSubmit}
+          noValidate
           className="rounded-3xl border border-slate-200 bg-slate-50 p-5"
         >
           <div className="mb-5">
@@ -253,51 +309,53 @@ export default function CompanyCVSearchSection() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Ključna reč">
+            <Field label="Ključna reč" error={validationErrors.keyword}>
               <input
                 value={search.keyword}
                 placeholder="Ime, opis, interesovanje..."
+                maxLength={201}
+                aria-invalid={Boolean(validationErrors.keyword)}
                 onChange={(event) =>
-                  setSearch((current) => ({
-                    ...current,
-                    keyword: event.target.value,
-                  }))
+                  updateSearchField("keyword", event.target.value)
                 }
-                className={inputClass}
+                className={`${inputClass} ${validationErrors.keyword ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
               />
             </Field>
 
-            <Field label="Veština">
+            <Field label="Veština" error={validationErrors.skill}>
               <input
                 value={search.skill}
                 placeholder="Java, React, Docker..."
+                maxLength={101}
+                aria-invalid={Boolean(validationErrors.skill)}
                 onChange={(event) =>
-                  setSearch((current) => ({
-                    ...current,
-                    skill: event.target.value,
-                  }))
+                  updateSearchField("skill", event.target.value)
                 }
-                className={inputClass}
+                className={`${inputClass} ${validationErrors.skill ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
               />
             </Field>
 
-            <Field label="Lokacija">
+            <Field label="Lokacija" error={validationErrors.location}>
               <input
                 value={search.location}
                 placeholder="Maribor, Ljubljana..."
+                maxLength={256}
+                aria-invalid={Boolean(validationErrors.location)}
                 onChange={(event) =>
-                  setSearch((current) => ({
-                    ...current,
-                    location: event.target.value,
-                  }))
+                  updateSearchField("location", event.target.value)
                 }
-                className={inputClass}
+                className={`${inputClass} ${validationErrors.location ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
               />
             </Field>
           </div>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <button type="submit" className={primaryButtonClass}>
+            <button type="submit" disabled={loading} className={primaryButtonClass}>
+              {loading ? (
+                <CompanyLoadingSpinner />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
               Pretraži CV-jeve
             </button>
 
@@ -314,6 +372,7 @@ export default function CompanyCVSearchSection() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-4">
             <div>
+              <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
               <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-950">
                 Kandidati
               </h3>
@@ -325,8 +384,11 @@ export default function CompanyCVSearchSection() {
             </div>
 
             {loading ? (
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
-                Učitavanje CV-jeva...
+              <div className="flex min-h-40 items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+                <span className="inline-flex items-center gap-2">
+                  <CompanyLoadingSpinner />
+                  Učitavanje CV-jeva...
+                </span>
               </div>
             ) : cvPage?.content.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -354,6 +416,8 @@ export default function CompanyCVSearchSection() {
                           : "border-slate-200 hover:border-[#1375bc]/40",
                       ].join(" ")}
                     >
+                      <div className="mb-4 h-1 w-9 rounded-full bg-[#ffd21e]" />
+
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
@@ -382,6 +446,9 @@ export default function CompanyCVSearchSection() {
                             selected ? primaryButtonClass : secondaryButtonClass
                           }
                         >
+                          <Eye
+                            className={`h-4 w-4 ${selected ? "text-white" : "text-[#1375bc]"}`}
+                          />
                           {selected ? "Otvoren CV" : "Otvori CV"}
                         </button>
 
@@ -391,6 +458,13 @@ export default function CompanyCVSearchSection() {
                           disabled={updatingFavorite}
                           className={secondaryButtonClass}
                         >
+                          {updatingFavorite ? (
+                            <CompanyLoadingSpinner />
+                          ) : cv.favorite ? (
+                            <StarOff className="h-4 w-4 text-[#1375bc]" />
+                          ) : (
+                            <Star className="h-4 w-4 text-[#1375bc]" />
+                          )}
                           {updatingFavorite
                             ? "Čuvanje..."
                             : cv.favorite
@@ -409,7 +483,7 @@ export default function CompanyCVSearchSection() {
                 <button
                   type="button"
                   disabled={cvPage.first}
-                  onClick={() => loadCVs(page - 1, search)}
+                  onClick={() => loadCVs(page - 1, activeSearch)}
                   className={secondaryButtonClass}
                 >
                   Prethodna
@@ -429,7 +503,7 @@ export default function CompanyCVSearchSection() {
                 <button
                   type="button"
                   disabled={cvPage.last}
-                  onClick={() => loadCVs(page + 1, search)}
+                  onClick={() => loadCVs(page + 1, activeSearch)}
                   className={secondaryButtonClass}
                 >
                   Sledeća
@@ -457,6 +531,15 @@ export default function CompanyCVSearchSection() {
 />
         </div>
       </div>
+
+      <CompanyStatusToast
+        message={message}
+        error={error}
+        onClose={() => {
+          setMessage("");
+          setError("");
+        }}
+      />
     </section>
   );
 }
@@ -464,15 +547,23 @@ export default function CompanyCVSearchSection() {
 
 function Field({
   label,
+  error,
   children,
 }: {
   label: string;
+  error?: string;
   children: ReactNode;
 }) {
   return (
     <label className="block space-y-2">
       <span className="text-sm font-semibold text-slate-700">{label}</span>
       {children}
+      {error && (
+        <span className="flex items-start gap-1.5 text-xs font-medium text-red-600">
+          <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {error}
+        </span>
+      )}
     </label>
   );
 }

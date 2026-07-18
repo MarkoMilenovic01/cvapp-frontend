@@ -2,9 +2,6 @@ import { apiRequest } from "./apiClient";
 import type { CompanyResponse } from "../types/company";
 import type { JobResponse, PageResponse } from "../types/job";
 
-function getToken() {
-  return localStorage.getItem("accessToken");
-}
 
 function buildQuery(params: Record<string, string | number | undefined | null>) {
   const searchParams = new URLSearchParams();
@@ -23,7 +20,6 @@ function buildQuery(params: Record<string, string | number | undefined | null>) 
 export function getCompanyById(companyId: number): Promise<CompanyResponse> {
   return apiRequest<CompanyResponse>(`/api/companies/${companyId}`, {
     method: "GET",
-    token: getToken(),
   });
 }
 
@@ -38,7 +34,6 @@ export function getActiveJobsByCompany(
     `/api/companies/${companyId}/jobs${query}`,
     {
       method: "GET",
-      token: getToken(),
     }
   );
 }

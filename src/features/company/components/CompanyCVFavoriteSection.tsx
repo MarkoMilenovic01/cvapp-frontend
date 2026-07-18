@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
+import { Eye, RefreshCw, Trash2 } from "lucide-react";
 
 import { ApiError } from "@/api/apiClient";
 import * as companyApi from "@/api/companyApi";
 
 import CompanyCVDetailsPanel from "@/features/company/components/CompanyCVDetailsPanel";
+import {
+  CompanyLoadingSpinner,
+  CompanyStatusToast,
+} from "@/features/company/components/CompanySectionUI";
 
 import type {
   CompanyCVDetailResponse,
@@ -11,13 +16,13 @@ import type {
 } from "@/types/company";
 
 const primaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl bg-[#1375bc] px-4 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#1375bc] px-5 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#1375bc]/30 hover:bg-[#f3f8fc] hover:text-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 const dangerButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-5 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (err instanceof ApiError) {
@@ -63,6 +68,8 @@ export default function CompanyCVFavoriteSection() {
   }, []);
 
   useEffect(() => {
+    // Initial API synchronization is intentionally performed after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadFavorites();
   }, [loadFavorites]);
 
@@ -145,29 +152,24 @@ export default function CompanyCVFavoriteSection() {
           <button
             type="button"
             onClick={() => void loadFavorites()}
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15"
+            disabled={loading}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
+            {loading ? (
+              <CompanyLoadingSpinner />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
             Osveži
           </button>
         </div>
       </div>
 
       <div className="space-y-6 p-6 sm:p-8">
-        {message && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-4">
             <div>
+              <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
               <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-950">
                 Lista favorita
               </h3>
@@ -178,8 +180,11 @@ export default function CompanyCVFavoriteSection() {
             </div>
 
             {loading ? (
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
-                Učitavanje favorita...
+              <div className="flex min-h-40 items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+                <span className="inline-flex items-center gap-2">
+                  <CompanyLoadingSpinner />
+                  Učitavanje favorita...
+                </span>
               </div>
             ) : favorites.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -207,6 +212,8 @@ export default function CompanyCVFavoriteSection() {
                           : "border-slate-200 hover:border-[#1375bc]/40",
                       ].join(" ")}
                     >
+                      <div className="mb-4 h-1 w-9 rounded-full bg-[#ffd21e]" />
+
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
@@ -231,6 +238,9 @@ export default function CompanyCVFavoriteSection() {
                           onClick={() => handleOpenCV(cv.id)}
                           className={selected ? primaryButtonClass : secondaryButtonClass}
                         >
+                          <Eye
+                            className={`h-4 w-4 ${selected ? "text-white" : "text-[#1375bc]"}`}
+                          />
                           {selected ? "Otvoren CV" : "Otvori CV"}
                         </button>
 
@@ -240,6 +250,11 @@ export default function CompanyCVFavoriteSection() {
                           disabled={removing}
                           className={dangerButtonClass}
                         >
+                          {removing ? (
+                            <CompanyLoadingSpinner />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                           {removing ? "Uklanjanje..." : "Ukloni iz favorita"}
                         </button>
                       </div>
@@ -267,7 +282,15 @@ export default function CompanyCVFavoriteSection() {
 />
         </div>
       </div>
+
+      <CompanyStatusToast
+        message={message}
+        error={error}
+        onClose={() => {
+          setMessage("");
+          setError("");
+        }}
+      />
     </section>
   );
 }
-

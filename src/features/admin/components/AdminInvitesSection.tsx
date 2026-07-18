@@ -1,17 +1,44 @@
 import { useState } from "react";
 import type * as React from "react";
+import { CircleAlert, RotateCcw, Send } from "lucide-react";
 
 import { ApiError } from "@/api/apiClient";
 import * as adminApi from "@/api/adminApi";
+import {
+  AdminLoadingSpinner,
+  AdminStatusToast,
+} from "@/features/admin/components/AdminSectionUI";
+
+type InviteErrors = Partial<Record<"email" | "companyName", string>>;
+
+function validateInvite(email: string, companyName: string) {
+  const errors: InviteErrors = {};
+
+  if (!email.trim()) {
+    errors.email = "Email je obavezan.";
+  } else if (email.length > 254) {
+    errors.email = "Email može imati najviše 254 karaktera.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.email = "Unesi validnu email adresu.";
+  }
+
+  if (!companyName.trim()) {
+    errors.companyName = "Naziv kompanije je obavezan.";
+  } else if (companyName.length > 120) {
+    errors.companyName = "Naziv kompanije može imati najviše 120 karaktera.";
+  }
+
+  return errors;
+}
 
 const inputClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#1375bc] focus:ring-4 focus:ring-[#1375bc]/10 disabled:cursor-not-allowed disabled:opacity-60";
 
 const primaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl bg-[#1375bc] px-4 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#1375bc] px-5 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#1375bc]/30 hover:bg-[#f3f8fc] hover:text-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (err instanceof ApiError) {
@@ -29,9 +56,19 @@ export default function AdminInvitesSection() {
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<InviteErrors>({});
 
   async function handleSendInvite(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const errors = validateInvite(inviteEmail, inviteCompanyName);
+    setValidationErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setMessage("");
+      setError("Proveri označena polja pre slanja pozivnice.");
+      return;
+    }
 
     try {
       setSendingInvite(true);
@@ -45,6 +82,7 @@ export default function AdminInvitesSection() {
 
       setInviteEmail("");
       setInviteCompanyName("");
+      setValidationErrors({});
       setMessage("Pozivnica za kompaniju je uspešno poslata.");
     } catch (err) {
       setError(
@@ -63,6 +101,7 @@ export default function AdminInvitesSection() {
     setInviteCompanyName("");
     setMessage("");
     setError("");
+    setValidationErrors({});
   }
 
   return (
@@ -89,21 +128,10 @@ export default function AdminInvitesSection() {
       </div>
 
       <div className="space-y-6 p-6 sm:p-8">
-        {message && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <form
             onSubmit={handleSendInvite}
+            noValidate
             className="rounded-3xl border border-slate-200 bg-slate-50 p-5"
           >
             <div className="mb-6">
@@ -124,28 +152,45 @@ export default function AdminInvitesSection() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Email kompanije">
+              <Field label="Email kompanije" error={validationErrors.email}>
                 <input
                   type="email"
-                  required
                   value={inviteEmail}
                   placeholder="company@example.com"
-                  onChange={(event) => setInviteEmail(event.target.value)}
+                  maxLength={255}
+                  aria-invalid={Boolean(validationErrors.email)}
+                  onChange={(event) => {
+                    setValidationErrors((current) => ({
+                      ...current,
+                      email: undefined,
+                    }));
+                    setError("");
+                    setInviteEmail(event.target.value);
+                  }}
                   disabled={sendingInvite}
-                  className={inputClass}
+                  className={`${inputClass} ${validationErrors.email ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
                 />
               </Field>
 
-              <Field label="Naziv kompanije">
+              <Field
+                label="Naziv kompanije"
+                error={validationErrors.companyName}
+              >
                 <input
-                  required
                   value={inviteCompanyName}
                   placeholder="BEST Niš"
-                  onChange={(event) =>
+                  maxLength={121}
+                  aria-invalid={Boolean(validationErrors.companyName)}
+                  onChange={(event) => {
+                    setValidationErrors((current) => ({
+                      ...current,
+                      companyName: undefined,
+                    }));
+                    setError("");
                     setInviteCompanyName(event.target.value)
-                  }
+                  }}
                   disabled={sendingInvite}
-                  className={inputClass}
+                  className={`${inputClass} ${validationErrors.companyName ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
                 />
               </Field>
             </div>
@@ -156,6 +201,11 @@ export default function AdminInvitesSection() {
                 disabled={sendingInvite}
                 className={primaryButtonClass}
               >
+                {sendingInvite ? (
+                  <AdminLoadingSpinner />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
                 {sendingInvite ? "Slanje pozivnice..." : "Pošalji pozivnicu"}
               </button>
 
@@ -165,6 +215,7 @@ export default function AdminInvitesSection() {
                 disabled={sendingInvite}
                 className={secondaryButtonClass}
               >
+                <RotateCcw className="h-4 w-4 text-[#1375bc]" />
                 Očisti formu
               </button>
             </div>
@@ -172,6 +223,7 @@ export default function AdminInvitesSection() {
 
           <aside className="xl:sticky xl:top-6 xl:self-start">
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#1375bc]">
                 Pregled
               </p>
@@ -210,21 +262,38 @@ export default function AdminInvitesSection() {
           </aside>
         </div>
       </div>
+
+      <AdminStatusToast
+        message={message}
+        error={error}
+        onClose={() => {
+          setMessage("");
+          setError("");
+        }}
+      />
     </section>
   );
 }
 
 function Field({
   label,
+  error,
   children,
 }: {
   label: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="block space-y-2">
       <span className="text-sm font-semibold text-slate-700">{label}</span>
       {children}
+      {error && (
+        <span className="flex items-start gap-1.5 text-xs font-medium text-red-600">
+          <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {error}
+        </span>
+      )}
     </label>
   );
 }

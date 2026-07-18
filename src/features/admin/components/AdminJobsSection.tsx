@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
+import {
+  Building2,
+  CalendarDays,
+  Power,
+  RefreshCw,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 
 import { ApiError } from "@/api/apiClient";
 import * as adminApi from "@/api/adminApi";
+import {
+  AdminLoadingSpinner,
+  AdminStatusToast,
+} from "@/features/admin/components/AdminSectionUI";
 
 import type {
   AdminJobResponse,
@@ -9,13 +21,13 @@ import type {
 } from "@/types/admin";
 
 const refreshButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#1375bc]/30 hover:bg-[#f3f8fc] hover:text-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 const dangerButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-5 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (err instanceof ApiError) {
@@ -36,6 +48,16 @@ function formatDate(value?: string | null) {
 
 function formatValue(value?: string | null) {
   return value && value.trim() ? value : "-";
+}
+
+function formatDeadline(value?: string | null) {
+  if (!value) return "Nije naveden";
+
+  return new Date(`${value}T00:00:00`).toLocaleDateString("sr-RS", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 function getEmploymentTypeLabel(value?: string | null) {
@@ -109,6 +131,8 @@ export default function AdminJobsSection() {
   );
 
   useEffect(() => {
+    // Initial API synchronization is intentionally performed after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadJobs(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -189,24 +213,17 @@ export default function AdminJobsSection() {
             disabled={loading}
             className={refreshButtonClass}
           >
+            {loading ? (
+              <AdminLoadingSpinner />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
             {loading ? "Osvežavanje..." : "Osveži"}
           </button>
         </div>
       </div>
 
       <div className="space-y-6 p-6 sm:p-8">
-        {message && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-
         <SectionTitle
           title="Lista oglasa"
           description={`Ukupno oglasa: ${
@@ -229,10 +246,12 @@ export default function AdminJobsSection() {
                   key={job.id}
                   className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#1375bc]/40"
                 >
+                  <div className="mb-4 h-1 w-9 rounded-full bg-[#ffd21e]" />
+
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-950">
+                        <h3 className="text-lg font-bold text-slate-950">
                           {job.title}
                         </h3>
 
@@ -243,7 +262,8 @@ export default function AdminJobsSection() {
                         />
                       </div>
 
-                      <p className="mt-2 text-sm font-medium text-slate-600">
+                      <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600">
+                        <Building2 className="h-4 w-4 text-[#1375bc]" />
                         {job.companyName}
                       </p>
 
@@ -261,6 +281,13 @@ export default function AdminJobsSection() {
                         disabled={updating || deleting}
                         className={secondaryButtonClass}
                       >
+                        {updating ? (
+                          <AdminLoadingSpinner />
+                        ) : job.active ? (
+                          <Power className="h-4 w-4 text-[#1375bc]" />
+                        ) : (
+                          <ShieldCheck className="h-4 w-4 text-[#1375bc]" />
+                        )}
                         {updating
                           ? "Ažuriranje..."
                           : job.active
@@ -274,6 +301,11 @@ export default function AdminJobsSection() {
                         disabled={updating || deleting}
                         className={dangerButtonClass}
                       >
+                        {deleting ? (
+                          <AdminLoadingSpinner />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                         {deleting ? "Brisanje..." : "Obriši"}
                       </button>
                     </div>
@@ -283,13 +315,11 @@ export default function AdminJobsSection() {
                     <Badge>ID: {job.id}</Badge>
                     <Badge>{getEmploymentTypeLabel(job.employmentType)}</Badge>
                     <Badge>{getWorkModeLabel(job.workMode)}</Badge>
-                    <Badge>Rok: {formatValue(job.deadline)}</Badge>
+                    <Badge>
+                      <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+                      Rok: {formatDeadline(job.deadline)}
+                    </Badge>
                     <Badge>Kreirano: {formatDate(job.createdAt)}</Badge>
-                  </div>
-
-                  <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                    <TextBlock title="Opis" text={job.description} />
-                    <TextBlock title="Zahtevi" text={job.requirements} />
                   </div>
                 </article>
               );
@@ -308,6 +338,15 @@ export default function AdminJobsSection() {
           />
         )}
       </div>
+
+      <AdminStatusToast
+        message={message}
+        error={error}
+        onClose={() => {
+          setMessage("");
+          setError("");
+        }}
+      />
     </section>
   );
 }
@@ -321,6 +360,7 @@ function SectionTitle({
 }) {
   return (
     <div>
+      <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
       <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-950">
         {title}
       </h3>
@@ -361,30 +401,13 @@ function Badge({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TextBlock({
-  title,
-  text,
-}: {
-  title: string;
-  text?: string | null;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-        {title}
-      </p>
-
-      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">
-        {formatValue(text)}
-      </p>
-    </div>
-  );
-}
-
 function LoadingCard({ text }: { text: string }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
-      {text}
+    <div className="flex min-h-40 items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+      <span className="inline-flex items-center gap-2">
+        <AdminLoadingSpinner />
+        {text}
+      </span>
     </div>
   );
 }

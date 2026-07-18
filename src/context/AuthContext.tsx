@@ -1,65 +1,106 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
 import * as authApi from "../api/authApi";
+import {
+  setApiAccessToken,
+  setApiRefreshHandler,
+} from "../api/apiClient";
 import type {
   AuthResponse,
   LoginRequest,
   RegisterRequest,
+  RegisterResponse,
   Role,
   AcceptCompanyInviteRequest,
-  OAuthExchangeRequest
+  ForgotPasswordRequest,
+  ResendVerificationRequest,
+  ResetPasswordRequest,
+  VerifyEmailRequest,
 } from "../types/auth";
 
 type AuthContextValue = {
   accessToken: string | null;
-  refreshToken: string | null;
   role: Role | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (request: LoginRequest) => Promise<AuthResponse>;
-  register: (request: RegisterRequest) => Promise<AuthResponse>;
+  register: (request: RegisterRequest) => Promise<RegisterResponse>;
+  forgotPassword: (request: ForgotPasswordRequest) => Promise<void>;
+  resetPassword: (request: ResetPasswordRequest) => Promise<void>;
+  verifyEmail: (request: VerifyEmailRequest) => Promise<void>;
+  resendVerification: (request: ResendVerificationRequest) => Promise<void>;
   logout: () => Promise<void>;
   acceptCompanyInvite: (
     request: AcceptCompanyInviteRequest
-  ) => Promise<AuthResponse>
-
-    completeOAuthLogin: (request: OAuthExchangeRequest) => Promise<AuthResponse>;
-
+  ) => Promise<AuthResponse>;
+  loginWithGoogle: (idToken: string) => Promise<AuthResponse>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+let sessionRefreshPromise: Promise<AuthResponse> | null = null;
 
-function getStoredRole(): Role | null {
-  const storedRole = localStorage.getItem("role");
+function refreshSessionOnce() {
+  sessionRefreshPromise ??= authApi.refreshToken().finally(() => {
+    sessionRefreshPromise = null;
+  });
 
-  if (
-    storedRole === "USER" ||
-    storedRole === "COMPANY" ||
-    storedRole === "ADMIN"
-  ) {
-    return storedRole;
-  }
-
-  return null;
+  return sessionRefreshPromise;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [accessToken, setAccessToken] = useState<string | null>(() =>
-    localStorage.getItem("accessToken")
-  );
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [role, setRole] = useState<Role | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [refreshToken, setRefreshToken] = useState<string | null>(() =>
-    localStorage.getItem("refreshToken")
-  );
+  useEffect(() => {
+    let active = true;
 
-  const [role, setRole] = useState<Role | null>(() => getStoredRole());
+    const refreshSession = async () => {
+      try {
+        const response = await refreshSessionOnce();
+
+        if (active) {
+          saveAuth(response);
+        }
+
+        return response.accessToken;
+      } catch {
+        if (active) {
+          clearAuth();
+        }
+
+        return null;
+      }
+    };
+
+    setApiRefreshHandler(refreshSession);
+    void refreshSession().finally(() => {
+      if (active) {
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      active = false;
+      setApiRefreshHandler(null);
+    };
+  }, []);
 
   function saveAuth(response: AuthResponse) {
-    localStorage.setItem("accessToken", response.accessToken);
-    localStorage.setItem("refreshToken", response.refreshToken);
-    localStorage.setItem("role", response.role);
-
+    setApiAccessToken(response.accessToken);
     setAccessToken(response.accessToken);
-    setRefreshToken(response.refreshToken);
     setRole(response.role);
+  }
+
+  function clearAuth() {
+    setApiAccessToken(null);
+    setAccessToken(null);
+    setRole(null);
   }
 
   async function login(request: LoginRequest): Promise<AuthResponse> {
@@ -68,62 +109,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return response;
   }
 
-  async function register(request: RegisterRequest): Promise<AuthResponse> {
+  async function register(request: RegisterRequest): Promise<RegisterResponse> {
     const response = await authApi.register(request);
-    saveAuth(response);
     return response;
   }
 
+  const forgotPassword = (request: ForgotPasswordRequest) =>
+    authApi.forgotPassword(request);
+
+  const resetPassword = (request: ResetPasswordRequest) =>
+    authApi.resetPassword(request);
+
+  const verifyEmail = (request: VerifyEmailRequest) =>
+    authApi.verifyEmail(request);
+
+  const resendVerification = (request: ResendVerificationRequest) =>
+    authApi.resendVerification(request);
+
   async function logout() {
-    const currentRefreshToken = localStorage.getItem("refreshToken");
-
     try {
-      if (currentRefreshToken) {
-        await authApi.logout({ refreshToken: currentRefreshToken });
-      }
+      await authApi.logout();
     } finally {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("role");
-
-      setAccessToken(null);
-      setRefreshToken(null);
-      setRole(null);
+      clearAuth();
     }
   }
 
   async function acceptCompanyInvite(
-  request: AcceptCompanyInviteRequest
-): Promise<AuthResponse> {
-  const response = await authApi.acceptCompanyInvite(request);
-  saveAuth(response);
-  return response;
-}
-
-async function completeOAuthLogin(request: OAuthExchangeRequest): Promise<AuthResponse> {
-    const response = await authApi.exchangeOAuthCode(request);
+    request: AcceptCompanyInviteRequest
+  ): Promise<AuthResponse> {
+    const response = await authApi.acceptCompanyInvite(request);
     saveAuth(response);
     return response;
   }
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      accessToken,
-      refreshToken,
-      role,
-      isAuthenticated: Boolean(accessToken),
-      login,
-      register,
-      acceptCompanyInvite,
-      completeOAuthLogin,
-      logout,
-    }),
-    [accessToken, refreshToken, role]
-  );
+  async function loginWithGoogle(idToken: string): Promise<AuthResponse> {
+    const response = await authApi.loginWithGoogle({ idToken });
+    saveAuth(response);
+    return response;
+  }
+
+  const value: AuthContextValue = {
+    accessToken,
+    role,
+    isAuthenticated: Boolean(accessToken && role),
+    isLoading,
+    login,
+    register,
+    forgotPassword,
+    resetPassword,
+    verifyEmail,
+    resendVerification,
+    logout,
+    acceptCompanyInvite,
+    loginWithGoogle,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// The provider and its hook intentionally live together as one public module.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
 

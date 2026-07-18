@@ -18,6 +18,37 @@ const primaryButtonClass =
 const secondaryLinkClass =
   "inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#1375bc]/30 hover:bg-[#f3f8fc] hover:text-[#075486]";
 
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 128;
+const SPECIAL_CHAR_REGEX = /[!@#$%^&*()_+\-=[\]{}|;':",./<>?]/;
+
+function validatePasswords(password: string, confirmPassword: string) {
+  const errors: Record<string, string> = {};
+
+  if (!password) {
+    errors.password = "Lozinka je obavezna.";
+  } else if (
+    password.length < PASSWORD_MIN_LENGTH ||
+    password.length > PASSWORD_MAX_LENGTH
+  ) {
+    errors.password = `Lozinka mora imati između ${PASSWORD_MIN_LENGTH} i ${PASSWORD_MAX_LENGTH} karaktera.`;
+  } else if (!/[A-Z]/.test(password)) {
+    errors.password = "Lozinka mora sadržati bar jedno veliko slovo.";
+  } else if (!/[0-9]/.test(password)) {
+    errors.password = "Lozinka mora sadržati bar jednu cifru.";
+  } else if (!SPECIAL_CHAR_REGEX.test(password)) {
+    errors.password = "Lozinka mora sadržati bar jedan specijalni karakter.";
+  }
+
+  if (!confirmPassword) {
+    errors.confirmPassword = "Potvrda lozinke je obavezna.";
+  } else if (password !== confirmPassword) {
+    errors.confirmPassword = "Lozinke se ne poklapaju.";
+  }
+
+  return errors;
+}
+
 export default function AcceptCompanyInvitePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -47,10 +78,10 @@ export default function AcceptCompanyInvitePage() {
       return;
     }
 
-    if (password !== confirmPassword) {
-      setFieldErrors({
-        confirmPassword: "Lozinke se ne poklapaju.",
-      });
+    const validationErrors = validatePasswords(password, confirmPassword);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
       return;
     }
 
@@ -178,7 +209,15 @@ export default function AcceptCompanyInvitePage() {
                       type="password"
                       value={password}
                       placeholder="Unesi lozinku"
-                      onChange={(event) => setPassword(event.target.value)}
+                      autoComplete="new-password"
+                      maxLength={PASSWORD_MAX_LENGTH}
+                      onChange={(event) => {
+                        setPassword(event.target.value);
+                        setFieldErrors((current) => ({
+                          ...current,
+                          password: "",
+                        }));
+                      }}
                       disabled={submitting}
                       className={inputClass}
                     />
@@ -192,9 +231,15 @@ export default function AcceptCompanyInvitePage() {
                       type="password"
                       value={confirmPassword}
                       placeholder="Ponovi lozinku"
-                      onChange={(event) =>
-                        setConfirmPassword(event.target.value)
-                      }
+                      autoComplete="new-password"
+                      maxLength={PASSWORD_MAX_LENGTH}
+                      onChange={(event) => {
+                        setConfirmPassword(event.target.value);
+                        setFieldErrors((current) => ({
+                          ...current,
+                          confirmPassword: "",
+                        }));
+                      }}
                       disabled={submitting}
                       className={inputClass}
                     />

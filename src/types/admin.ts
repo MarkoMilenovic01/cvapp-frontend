@@ -31,8 +31,10 @@ export interface AdminUserResponse {
   createdAt: string;
 }
 
+export type AdminAssignableRole = Extract<Role, "USER" | "ADMIN">;
+
 export interface ChangeRoleRequest {
-  role: Role;
+  role: AdminAssignableRole;
 }
 
 export interface AdminCompanyResponse {
@@ -52,15 +54,12 @@ export interface AdminJobResponse {
   companyId: number;
   companyName: string;
   title: string;
-  description: string;
-  requirements: string;
   location: string;
   employmentType: EmploymentType;
   workMode: WorkMode;
   deadline: string | null;
   active: boolean;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface InviteRequest {

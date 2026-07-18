@@ -1,5 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CheckCircle2,
+  CircleAlert,
+  ExternalLink,
+  LoaderCircle,
+  LogOut,
+  MapPin,
+  Send,
+  X,
+} from "lucide-react";
 
 import jobFairLogoWhite from "@/assets/jobfairnis-white.svg";
 import bestLogoWhite from "@/assets/bestnis-white.svg";
@@ -18,10 +30,10 @@ import type {
 } from "@/types/job";
 
 const primaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl bg-[#1375bc] px-4 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#1375bc] px-5 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#1375bc]/30 hover:bg-[#f3f8fc] hover:text-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (err instanceof ApiError) {
@@ -41,6 +53,16 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleString("sr-RS", {
     dateStyle: "medium",
     timeStyle: "short",
+  });
+}
+
+function formatDeadline(value?: string | null) {
+  if (!value) return "Nije naveden";
+
+  return new Date(`${value}T00:00:00`).toLocaleDateString("sr-RS", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   });
 }
 
@@ -92,6 +114,7 @@ export default function UserCompanyProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [jobsLoading, setJobsLoading] = useState(false);
+  const [applicationsLoading, setApplicationsLoading] = useState(true);
   const [applyingId, setApplyingId] = useState<number | null>(null);
 
   const [message, setMessage] = useState("");
@@ -106,6 +129,17 @@ export default function UserCompanyProfilePage() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [numericCompanyId]);
+
+  useEffect(() => {
+    if (!message && !error) return;
+
+    const timeout = window.setTimeout(() => {
+      setMessage("");
+      setError("");
+    }, 4500);
+
+    return () => window.clearTimeout(timeout);
+  }, [message, error]);
 
   async function loadCompany() {
     try {
@@ -154,6 +188,7 @@ export default function UserCompanyProfilePage() {
 
   async function loadApplications() {
     try {
+      setApplicationsLoading(true);
       const response = await jobApi.getMyApplications();
 
       setApplications(response);
@@ -164,6 +199,8 @@ export default function UserCompanyProfilePage() {
           "Došlo je do greške prilikom učitavanja prijava.",
         ),
       );
+    } finally {
+      setApplicationsLoading(false);
     }
   }
 
@@ -206,6 +243,7 @@ export default function UserCompanyProfilePage() {
           </p>
 
           <Link to="/user" className={`${primaryButtonClass} mt-6`}>
+            <ArrowLeft className="h-4 w-4" />
             Nazad na dashboard
           </Link>
         </div>
@@ -227,7 +265,10 @@ export default function UserCompanyProfilePage() {
                 </p>
 
                 <h2 className="mt-1 text-2xl font-bold tracking-[-0.04em]">
-                  Učitavanje profila...
+                  <span className="inline-flex items-center gap-2">
+                    <LoadingSpinner className="h-5 w-5" />
+                    Učitavanje profila...
+                  </span>
                 </h2>
 
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-white/70">
@@ -272,7 +313,8 @@ export default function UserCompanyProfilePage() {
                 to="/user"
                 className="inline-flex h-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm backdrop-blur transition hover:border-white/30 hover:bg-white/15"
               >
-                ← Nazad na dashboard
+                <ArrowLeft className="mr-2 inline h-4 w-4" />
+                Nazad na dashboard
               </Link>
 
               <button
@@ -280,6 +322,7 @@ export default function UserCompanyProfilePage() {
                 onClick={logout}
                 className="inline-flex h-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm backdrop-blur transition hover:border-white/30 hover:bg-white/15"
               >
+                <LogOut className="mr-2 inline h-4 w-4" />
                 Odjavi se
               </button>
             </div>
@@ -306,18 +349,6 @@ export default function UserCompanyProfilePage() {
 
       <section className="relative z-10 mx-auto -mt-8 w-full max-w-7xl px-5 pb-10 sm:px-8 lg:px-10">
         <div className="space-y-6">
-          {message && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-              {message}
-            </div>
-          )}
-
-          {error && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {error}
-            </div>
-          )}
-
           {!company ? (
             <section className="rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-xl shadow-slate-200/70">
               <h2 className="text-2xl font-bold tracking-[-0.04em] text-slate-950">
@@ -357,7 +388,8 @@ export default function UserCompanyProfilePage() {
                       rel="noreferrer"
                       className="inline-flex h-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15"
                     >
-                      Website →
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Website
                     </a>
                   )}
                 </div>
@@ -365,7 +397,8 @@ export default function UserCompanyProfilePage() {
 
               <div className="grid gap-6 p-6 sm:p-8 xl:grid-cols-[380px_minmax(0,1fr)]">
                 <aside className="xl:sticky xl:top-6 xl:self-start">
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="mb-4 h-1 w-9 rounded-full bg-[#ffd21e]" />
                     {company.photoUrl ? (
                       <img
                         src={company.photoUrl}
@@ -419,6 +452,7 @@ export default function UserCompanyProfilePage() {
 
                   <section>
                     <div className="mb-4">
+                      <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
                       <h3 className="text-xl font-bold tracking-[-0.03em] text-slate-950">
                         Otvorene pozicije
                       </h3>
@@ -430,8 +464,11 @@ export default function UserCompanyProfilePage() {
                     </div>
 
                     {jobsLoading ? (
-                      <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
-                        Učitavanje pozicija...
+                      <div className="flex min-h-40 items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+                        <span className="inline-flex items-center gap-2">
+                          <LoadingSpinner />
+                          Učitavanje pozicija...
+                        </span>
                       </div>
                     ) : jobPage?.content.length === 0 ? (
                       <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -454,27 +491,37 @@ export default function UserCompanyProfilePage() {
                               key={job.id}
                               className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#1375bc]/40"
                             >
+                              <div className="mb-4 h-1 w-9 rounded-full bg-[#ffd21e]" />
+
                               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                 <div>
-                                  <h4 className="text-xl font-bold tracking-[-0.03em] text-slate-950">
+                                  <h4 className="text-lg font-bold text-slate-950">
                                     {job.title}
                                   </h4>
 
-                                  <p className="mt-2 text-sm text-slate-500">
-                                    {formatValue(job.location)} ·{" "}
-                                    {getEmploymentTypeLabel(job.employmentType)} ·{" "}
-                                    {getWorkModeLabel(job.workMode)}
+                                  <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-slate-500">
+                                    <MapPin className="h-4 w-4" />
+                                    {formatValue(job.location)}
                                   </p>
                                 </div>
 
                                 <button
                                   type="button"
-                                  disabled={applied || applying}
+                                  disabled={
+                                    applied || applicationsLoading || applying
+                                  }
                                   onClick={() => handleApply(job.id)}
                                   className={primaryButtonClass}
                                 >
+                                  {applying ? (
+                                    <LoadingSpinner />
+                                  ) : !applied && !applicationsLoading ? (
+                                    <Send className="h-4 w-4" />
+                                  ) : null}
                                   {applied
                                     ? "Već si prijavljen/a"
+                                    : applicationsLoading
+                                      ? "Provera prijave..."
                                     : applying
                                       ? "Slanje prijave..."
                                       : "Prijavi se"}
@@ -483,7 +530,8 @@ export default function UserCompanyProfilePage() {
 
                               <div className="mt-4 flex flex-wrap gap-2">
                                 <Badge>
-                                  Rok: {formatValue(job.deadline)}
+                                  <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+                                  Rok: {formatDeadline(job.deadline)}
                                 </Badge>
                                 <Badge>
                                   {getEmploymentTypeLabel(job.employmentType)}
@@ -508,7 +556,7 @@ export default function UserCompanyProfilePage() {
                       <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row">
                         <button
                           type="button"
-                          disabled={jobPage.first}
+                          disabled={jobPage.first || jobsLoading}
                           onClick={() => loadCompanyJobs(page - 1)}
                           className={secondaryButtonClass}
                         >
@@ -528,7 +576,7 @@ export default function UserCompanyProfilePage() {
 
                         <button
                           type="button"
-                          disabled={jobPage.last}
+                          disabled={jobPage.last || jobsLoading}
                           onClick={() => loadCompanyJobs(page + 1)}
                           className={secondaryButtonClass}
                         >
@@ -543,7 +591,82 @@ export default function UserCompanyProfilePage() {
           )}
         </div>
       </section>
+
+      <StatusToast
+        message={message}
+        error={error}
+        onClose={() => {
+          setMessage("");
+          setError("");
+        }}
+      />
     </main>
+  );
+}
+
+function LoadingSpinner({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <LoaderCircle
+      className={`${className} shrink-0 animate-spin`}
+      aria-hidden="true"
+    />
+  );
+}
+
+function StatusToast({
+  message,
+  error,
+  onClose,
+}: {
+  message: string;
+  error: string;
+  onClose: () => void;
+}) {
+  const text = error || message;
+  const success = Boolean(message && !error);
+
+  if (!text) return null;
+
+  return (
+    <div
+      role={success ? "status" : "alert"}
+      aria-live={success ? "polite" : "assertive"}
+      className={[
+        "fixed bottom-5 right-5 z-50 flex w-[calc(100%-2.5rem)] max-w-sm items-start gap-3 rounded-2xl border bg-white p-4 shadow-2xl",
+        success ? "border-emerald-200" : "border-red-200",
+      ].join(" ")}
+    >
+      <span
+        className={[
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+          success
+            ? "bg-emerald-50 text-emerald-600"
+            : "bg-red-50 text-red-600",
+        ].join(" ")}
+      >
+        {success ? (
+          <CheckCircle2 className="h-5 w-5" />
+        ) : (
+          <CircleAlert className="h-5 w-5" />
+        )}
+      </span>
+
+      <div className="min-w-0 flex-1 pt-0.5">
+        <p className="text-sm font-bold text-slate-900">
+          {success ? "Uspešno" : "Došlo je do greške"}
+        </p>
+        <p className="mt-1 text-sm leading-5 text-slate-600">{text}</p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Zatvori obaveštenje"
+        className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
   );
 }
 

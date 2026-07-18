@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import { ExternalLink } from "lucide-react";
 
 import type { CompanyCVDetailResponse } from "@/types/company";
+import { CompanyLoadingSpinner } from "@/features/company/components/CompanySectionUI";
 
 type DetailsAction = {
   label: string;
@@ -17,13 +19,13 @@ type CompanyCVDetailsPanelProps = {
 };
 
 const primaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl bg-[#1375bc] px-4 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#1375bc] px-5 text-sm font-semibold text-white shadow-lg shadow-[#1375bc]/20 transition hover:bg-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#1375bc]/30 hover:bg-[#f3f8fc] hover:text-[#075486] disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 const dangerButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-5 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60";
 
 function getActionClass(variant: DetailsAction["variant"]) {
   switch (variant) {
@@ -49,12 +51,14 @@ export default function CompanyCVDetailsPanel({
   return (
     <aside className="xl:sticky xl:top-6 xl:self-start">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-3 h-1 w-9 rounded-full bg-[#ffd21e]" />
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#1375bc]">
           Detalji CV-ja
         </p>
 
         {detailsLoading && (
-          <p className="mt-5 text-sm font-medium text-slate-500">
+          <p className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-slate-500">
+            <CompanyLoadingSpinner />
             Učitavanje detalja...
           </p>
         )}
@@ -87,6 +91,7 @@ function CVDetails({
   const initials = `${cv.firstName?.[0] ?? ""}${cv.lastName?.[0] ?? ""}`;
   const education = cv.education ?? [];
   const experience = cv.experience ?? [];
+  const projects = cv.projects ?? [];
   const skills = cv.skills ?? [];
 
   return (
@@ -122,6 +127,7 @@ function CVDetails({
           disabled={action.loading}
           className={`${getActionClass(action.variant)} mt-5 w-full`}
         >
+          {action.loading && <CompanyLoadingSpinner />}
           {action.loading ? action.loadingLabel ?? "Čuvanje..." : action.label}
         </button>
       )}
@@ -149,7 +155,8 @@ function CVDetails({
             rel="noreferrer"
             className={secondaryButtonClass}
           >
-            LinkedIn →
+            <ExternalLink className="h-4 w-4 text-[#1375bc]" />
+            LinkedIn
           </a>
         )}
 
@@ -160,7 +167,8 @@ function CVDetails({
             rel="noreferrer"
             className={secondaryButtonClass}
           >
-            GitHub →
+            <ExternalLink className="h-4 w-4 text-[#1375bc]" />
+            GitHub
           </a>
         )}
 
@@ -171,7 +179,8 @@ function CVDetails({
             rel="noreferrer"
             className={primaryButtonClass}
           >
-            Otvori PDF CV →
+            <ExternalLink className="h-4 w-4" />
+            Otvori PDF CV
           </a>
         )}
       </div>
@@ -202,7 +211,7 @@ function CVDetails({
             {education.map((item) => (
               <div
                 key={item.id}
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <p className="font-bold text-slate-950">{item.institution}</p>
 
@@ -228,12 +237,15 @@ function CVDetails({
             {experience.map((item) => (
               <div
                 key={item.id}
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <p className="font-bold text-slate-950">{item.position}</p>
 
                 <p className="mt-1 text-sm font-medium text-slate-600">
                   {item.companyName}
+                  {item.experienceType
+                    ? ` · ${item.experienceType.replaceAll("_", " ")}`
+                    : ""}
                 </p>
 
                 <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-500">
@@ -244,6 +256,58 @@ function CVDetails({
                   {item.startDate || "?"} —{" "}
                   {item.current ? "Trenutno" : item.endDate || "?"}
                 </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </DetailGroup>
+
+      <DetailGroup title="Projekti">
+        {projects.length === 0 ? (
+          <p className="text-sm text-slate-500">Nema dodatih projekata.</p>
+        ) : (
+          <div className="space-y-3">
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <p className="font-bold text-slate-950">{project.name}</p>
+
+                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-500">
+                  {formatValue(project.description)}
+                </p>
+
+                <p className="mt-2 text-xs font-semibold text-slate-400">
+                  {project.startDate || "?"} —{" "}
+                  {project.current ? "Trenutno" : project.endDate || "?"}
+                </p>
+
+                {(project.projectUrl || project.repositoryUrl) && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {project.projectUrl && (
+                      <a
+                        href={project.projectUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-semibold text-[#1375bc] hover:underline"
+                      >
+                        Otvori projekat →
+                      </a>
+                    )}
+
+                    {project.repositoryUrl && (
+                      <a
+                        href={project.repositoryUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-semibold text-[#1375bc] hover:underline"
+                      >
+                        Repozitorijum →
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

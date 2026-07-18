@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,6 @@ import { Separator } from "@/components/ui/separator";
 import { ApiError } from "@/api/apiClient";
 import { useAuth } from "@/context/AuthContext";
 import { getDashboardPath } from "@/utils/authRedirect";
-import { getOAuthErrorMessage } from "@/utils/oauthErrors";
-import { GoogleButton } from "@/features/auth/components/GoogleButton";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const EMAIL_MAX_LENGTH = 254;
 const PASSWORD_MAX_LENGTH = 128;
@@ -43,8 +40,7 @@ function validateLoginFields(email: string, password: string) {
 
 export function LoginForm() {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [searchParams] = useSearchParams();
+  const { login, loginWithGoogle } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,9 +48,6 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const oauthError = getOAuthErrorMessage(searchParams.get("oauthError"));
-  const pageError = error || oauthError;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,13 +82,18 @@ export function LoginForm() {
     }
   }
 
-  function handleGoogleLogin() {
-    if (!API_BASE_URL) {
-      setError("Osnovni API URL nije podešen.");
+  async function handleGoogleSuccess(credentialResponse: CredentialResponse) {
+    if (!credentialResponse.credential) {
+      setError("Google prijava nije uspela.");
       return;
     }
 
-    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
+    try {
+      const response = await loginWithGoogle(credentialResponse.credential);
+      navigate(getDashboardPath(response.role), { replace: true });
+    } catch {
+      setError("Došlo je do greške prilikom Google prijave.");
+    }
   }
 
   function handleEmailChange(value: string) {
@@ -122,9 +120,9 @@ export function LoginForm() {
 
   return (
     <div>
-      {pageError && (
+      {error && (
         <Alert variant="destructive" className="mb-5">
-          <AlertDescription>{pageError}</AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
@@ -184,7 +182,14 @@ export function LoginForm() {
         <Separator className="flex-1" />
       </div>
 
-      <GoogleButton onClick={handleGoogleLogin} />
+      <GoogleLogin
+        onSuccess={handleGoogleSuccess}
+        onError={() => setError("Google prijava nije uspela.")}
+        theme="outline"
+        size="large"
+        width="100%"
+        text="continue_with"
+      />
 
       <div className="mt-6 flex items-center justify-center gap-3 text-sm text-slate-500">
         <Link

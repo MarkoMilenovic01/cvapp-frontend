@@ -51,6 +51,7 @@ export interface JobSearchFilter {
   location: string;
   employmentType: EmploymentType | "";
   workMode: WorkMode | "";
+  companyName: string;
 }
 
 export interface PageResponse<T> {

@@ -9,9 +9,6 @@ import type {
   PageResponse,
 } from "../types/admin";
 
-function getToken() {
-  return localStorage.getItem("accessToken");
-}
 
 function buildQuery(params: Record<string, string | number | undefined | null>) {
   const searchParams = new URLSearchParams();
@@ -32,7 +29,6 @@ function buildQuery(params: Record<string, string | number | undefined | null>) 
 export function getAdminStats(): Promise<AdminStatsResponse> {
   return apiRequest<AdminStatsResponse>("/api/admin/stats", {
     method: "GET",
-    token: getToken(),
   });
 }
 
@@ -48,15 +44,19 @@ export function getAdminUsers(
     `/api/admin/users${query}`,
     {
       method: "GET",
-      token: getToken(),
     }
   );
+}
+
+export function getAdminUserById(id: number): Promise<AdminUserResponse> {
+  return apiRequest<AdminUserResponse>(`/api/admin/users/${id}`, {
+    method: "GET",
+  });
 }
 
 export function toggleUserEnabled(id: number): Promise<AdminUserResponse> {
   return apiRequest<AdminUserResponse>(`/api/admin/users/${id}/toggle`, {
     method: "PATCH",
-    token: getToken(),
   });
 }
 
@@ -67,14 +67,12 @@ export function changeUserRole(
   return apiRequest<AdminUserResponse>(`/api/admin/users/${id}/role`, {
     method: "PATCH",
     body: request,
-    token: getToken(),
   });
 }
 
 export function deleteUser(id: number): Promise<void> {
   return apiRequest<void>(`/api/admin/users/${id}`, {
     method: "DELETE",
-    token: getToken(),
   });
 }
 
@@ -90,15 +88,19 @@ export function getAdminCompanies(
     `/api/admin/companies${query}`,
     {
       method: "GET",
-      token: getToken(),
     }
   );
+}
+
+export function getAdminCompanyById(id: number): Promise<AdminCompanyResponse> {
+  return apiRequest<AdminCompanyResponse>(`/api/admin/companies/${id}`, {
+    method: "GET",
+  });
 }
 
 export function deleteCompany(id: number): Promise<void> {
   return apiRequest<void>(`/api/admin/companies/${id}`, {
     method: "DELETE",
-    token: getToken(),
   }); 
 }
 
@@ -112,21 +114,24 @@ export function getAdminJobs(
 
   return apiRequest<PageResponse<AdminJobResponse>>(`/api/admin/jobs${query}`, {
     method: "GET",
-    token: getToken(),
+  });
+}
+
+export function getAdminJobById(id: number): Promise<AdminJobResponse> {
+  return apiRequest<AdminJobResponse>(`/api/admin/jobs/${id}`, {
+    method: "GET",
   });
 }
 
 export function toggleJobActive(id: number): Promise<AdminJobResponse> {
   return apiRequest<AdminJobResponse>(`/api/admin/jobs/${id}/toggle`, {
     method: "PATCH",
-    token: getToken(),
   });
 }
 
 export function deleteJob(id: number): Promise<void> {
   return apiRequest<void>(`/api/admin/jobs/${id}`, {
     method: "DELETE",
-    token: getToken(),
   });
 }
 
@@ -136,6 +141,5 @@ export function sendCompanyInvite(request: InviteRequest): Promise<void> {
   return apiRequest<void>("/api/auth/company-invites", {
     method: "POST",
     body: request,
-    token: getToken(),
   });
 }

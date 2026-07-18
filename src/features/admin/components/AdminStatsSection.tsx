@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 
 import { ApiError } from "@/api/apiClient";
 import * as adminApi from "@/api/adminApi";
+import {
+  AdminLoadingSpinner,
+  AdminStatusToast,
+} from "@/features/admin/components/AdminSectionUI";
 
 import type { AdminStatsResponse } from "@/types/admin";
 
 const refreshButtonClass =
-  "inline-flex h-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60";
 
 function getErrorMessage(err: unknown, fallback: string) {
   if (err instanceof ApiError) {
@@ -52,6 +57,8 @@ export default function AdminStatsSection() {
   }, []);
 
   useEffect(() => {
+    // Initial API synchronization is intentionally performed after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadStats();
   }, [loadStats]);
 
@@ -84,24 +91,17 @@ export default function AdminStatsSection() {
             disabled={loading}
             className={refreshButtonClass}
           >
+            {loading ? (
+              <AdminLoadingSpinner />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
             {loading ? "Osvežavanje..." : "Osveži"}
           </button>
         </div>
       </div>
 
       <div className="space-y-6 p-6 sm:p-8">
-        {message && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-
         {loading && !stats ? (
           <LoadingCard text="Učitavanje statistike..." />
         ) : !stats ? (
@@ -165,6 +165,15 @@ export default function AdminStatsSection() {
           </>
         )}
       </div>
+
+      <AdminStatusToast
+        message={message}
+        error={error}
+        onClose={() => {
+          setMessage("");
+          setError("");
+        }}
+      />
     </section>
   );
 }
@@ -179,7 +188,7 @@ function StatCard({
   description: string;
 }) {
   return (
-    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#1375bc]/40">
       <div className="h-1 w-10 rounded-full bg-[#ffd21e]" />
 
       <p className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
@@ -211,8 +220,11 @@ function MiniStatCard({ label, value }: { label: string; value: number }) {
 
 function LoadingCard({ text }: { text: string }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
-      {text}
+    <div className="flex min-h-40 items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+      <span className="inline-flex items-center gap-2">
+        <AdminLoadingSpinner />
+        {text}
+      </span>
     </div>
   );
 }
